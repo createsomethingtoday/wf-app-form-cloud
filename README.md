@@ -128,7 +128,7 @@ webflow cloud deploy
 
 - Webflow Cloud currently expects a Next.js 15+ project.
 - Webflow Cloud manages the worker runtime config; keep repo `wrangler.json` limited to storage bindings and migrations.
-- The app still supports the direct Cloudflare/OpenNext deployment path used outside Webflow Cloud.
+- The Cloudflare/OpenNext code path still exists, but direct standalone Cloudflare deployment now needs its own full worker config outside the Webflow Cloud `wrangler.json`.
 - `BASE_URL` and `ASSETS_PREFIX` are used for in-product mounting; the app defaults to root paths when they are unset.
 
 ## Environment Variables
