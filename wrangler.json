@@ -1,4 +1,11 @@
 {
+  "$schema": "./node_modules/wrangler/config-schema.json",
+  "name": "webflow-app-form",
+  "main": "custom-worker.ts",
+  "compatibility_date": "2026-03-17",
+  "compatibility_flags": [
+    "nodejs_compat"
+  ],
   "d1_databases": [
     {
       "binding": "SUBMISSIONS_DB",

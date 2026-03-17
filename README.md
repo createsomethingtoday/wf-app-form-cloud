@@ -98,7 +98,7 @@ The cron jobs will automatically be configured from `vercel.json`.
 This project now includes a Webflow Cloud-compatible app shape:
 
 - `webflow.json` declares the project as a Next.js Webflow Cloud app
-- `wrangler.json` carries only the storage bindings Webflow Cloud reads at deploy time
+- `wrangler.json` carries the minimal Wrangler metadata plus the storage bindings Webflow Cloud reads at deploy time
 - `next.config.js` respects `BASE_URL` and `ASSETS_PREFIX` so the app can be mounted inside Webflow product paths
 - `/api/submit-form` runs as an edge route using `Request`, `FormData`, and `File` APIs instead of `formidable`/`fs`
 - `scripts/migrations/0001_create_submissions.sql` boots the D1 schema for fresh Webflow Cloud environments
