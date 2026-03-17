@@ -1,39 +1,16 @@
 {
-  "$schema": "./node_modules/wrangler/config-schema.json",
-  "name": "wf-bl-app-form-cloud",
-  "account_id": "9645bd52e640b8a4f40a3a55ff1dd75a",
-  "main": "custom-worker.ts",
-  "compatibility_date": "2026-03-17",
-  "compatibility_flags": [
-    "nodejs_compat"
-  ],
   "d1_databases": [
     {
       "binding": "SUBMISSIONS_DB",
-      "database_name": "wf-bl-app-form-cloud",
-      "database_id": "dff8622b-864e-4475-a4b7-29216881ea9b"
+      "database_name": "webflow-app-form",
+      "database_id": "auto-generated-by-webflow-cloud",
+      "migrations_dir": "./scripts/migrations"
     }
   ],
   "r2_buckets": [
     {
       "binding": "FORM_UPLOADS",
-      "bucket_name": "wf-bl-app-form-cloud-uploads"
+      "bucket_name": "webflow-app-form-uploads"
     }
-  ],
-  "vars": {
-    "FORM_UPLOADS_PUBLIC_URL": "https://pub-d834297323f546c6acd399145c2ee05e.r2.dev"
-  },
-  "assets": {
-    "directory": ".open-next/assets",
-    "binding": "ASSETS"
-  },
-  "triggers": {
-    "crons": [
-      "*/15 * * * *",
-      "0 */6 * * *"
-    ]
-  },
-  "observability": {
-    "enabled": true
-  }
+  ]
 }

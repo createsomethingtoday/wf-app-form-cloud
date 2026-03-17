@@ -1,6 +1,5 @@
 {
   "cloud": {
-    "projectId": "replace-with-webflow-cloud-project-id",
     "framework": "nextjs"
   }
 }

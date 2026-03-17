@@ -98,15 +98,17 @@ The cron jobs will automatically be configured from `vercel.json`.
 This project now includes a Webflow Cloud-compatible app shape:
 
 - `webflow.json` declares the project as a Next.js Webflow Cloud app
-- `wrangler.json` carries the Cloudflare bindings Webflow Cloud reads at deploy time
+- `wrangler.json` carries only the storage bindings Webflow Cloud reads at deploy time
 - `next.config.js` respects `BASE_URL` and `ASSETS_PREFIX` so the app can be mounted inside Webflow product paths
 - `/api/submit-form` runs as an edge route using `Request`, `FormData`, and `File` APIs instead of `formidable`/`fs`
+- `scripts/migrations/0001_create_submissions.sql` boots the D1 schema for fresh Webflow Cloud environments
 
 ### Webflow Cloud prerequisites
 
 1. Create a Webflow Cloud project in the Webflow UI and connect it to the GitHub repository that contains this app.
-2. Replace the placeholder `projectId` in `webflow.json` with the real Webflow Cloud project ID.
-3. Use the Webflow CLI to authenticate against the target site:
+2. Configure the Webflow Cloud environment path, such as `/app-form`.
+3. Add the app runtime environment variables in the Webflow Cloud UI using `.env.local.example` as the source of truth.
+4. Use the Webflow CLI to authenticate against the target site if you want to trigger deployments from your terminal:
 
 ```bash
 webflow auth login
@@ -125,6 +127,7 @@ webflow cloud deploy
 ### Notes
 
 - Webflow Cloud currently expects a Next.js 15+ project.
+- Webflow Cloud manages the worker runtime config; keep repo `wrangler.json` limited to storage bindings and migrations.
 - The app still supports the direct Cloudflare/OpenNext deployment path used outside Webflow Cloud.
 - `BASE_URL` and `ASSETS_PREFIX` are used for in-product mounting; the app defaults to root paths when they are unset.
 
