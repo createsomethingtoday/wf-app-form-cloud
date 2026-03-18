@@ -108,7 +108,9 @@ This project now includes a Webflow Cloud-compatible app shape:
 1. Create a Webflow Cloud project in the Webflow UI and connect it to the GitHub repository that contains this app.
 2. Configure the Webflow Cloud environment path, such as `/app-form`.
 3. Add the app runtime environment variables in the Webflow Cloud UI using `.env.local.example` as the source of truth.
-4. Use the Webflow CLI to authenticate against the target site if you want to trigger deployments from your terminal:
+4. If you want the Update flow to expose the "Load Existing App Data" path in production, set `NEXT_PUBLIC_UPDATE_TOGGLES_ENABLED=true` and `NEXT_PUBLIC_AUTOFILL_UPDATE_ENABLED=true`.
+5. Set either `AUTOFILL_TOKEN_SECRET` or `ADMIN_API_TOKEN` so the app can mint short-lived autofill tokens for Airtable reads.
+6. Use the Webflow CLI to authenticate against the target site if you want to trigger deployments from your terminal:
 
 ```bash
 webflow auth login
@@ -178,6 +180,14 @@ VALID_CLIENT_IDS="client123,client456,testclient789"
 
 # ===== Airtable (for auto-fill feature) =====
 AIRTABLE_API_KEY="patXXXXXXXXXXXXXX"
+
+# ===== Autofill Authorization =====
+# Use a dedicated secret when possible. ADMIN_API_TOKEN is used as fallback.
+AUTOFILL_TOKEN_SECRET="your-long-random-secret"
+
+# ===== Client-side Feature Flags =====
+NEXT_PUBLIC_UPDATE_TOGGLES_ENABLED="true"
+NEXT_PUBLIC_AUTOFILL_UPDATE_ENABLED="true"
 ```
 
 ## Database Setup
@@ -240,14 +250,17 @@ Submit a new marketplace app form with files.
 }
 ```
 
-#### `GET /api/verify-client-id?clientId=xxx`
-Verify if a client ID is valid.
+#### `POST /api/verify-client-id`
+Verify whether a client ID is valid for the selected submission type.
+
+For `submissionType="Update"`, successful responses can include a short-lived `autofillToken` used by the Airtable autofill endpoint.
 
 **Response**:
 ```json
 {
-  "valid": true,
-  "clientId": "xxx"
+  "clientIdExists": true,
+  "autofillToken": "eyJjbGllbnRJZCI6Ii4uLiJ9.signature",
+  "message": "Client ID check completed"
 }
 ```
 
@@ -255,6 +268,7 @@ Verify if a client ID is valid.
 Get existing app data for auto-fill (Update submissions).
 
 - `clientId` must be a valid 64-character hexadecimal string
+- Requires an `x-autofill-token` header minted by `POST /api/verify-client-id`
 - Response is limited to the Airtable fields used by the update autofill flow
 
 **Response**:

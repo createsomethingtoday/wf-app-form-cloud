@@ -1,4 +1,5 @@
 import { getEnvValue } from '../../../lib/cloudflareRuntime';
+import { verifyAutofillToken } from '../../../lib/autofillToken';
 
 const CLIENT_ID_PATTERN = /^[a-f0-9]{64}$/i;
 const CLIENT_ID_FIELD_ID = 'fldtwvVVlTeDRlTYV';
@@ -9,6 +10,7 @@ const ALLOWED_FIELD_NAMES = [
   'ℹ️Scopes',
   'Scopes',
   'all-selected-scopes',
+  'App Avatar Alt Text',
   'ℹ️💲Payment Types',
   'ℹ️Visibility (🖥️ only)',
   'ℹ️🪣Categories (Text)',
@@ -19,12 +21,18 @@ const ALLOWED_FIELD_NAMES = [
   'ℹ️Description (Long).html',
   '❓ℹ️✨Features Text (MIGRATE TO LINKED FIELD)',
   '🔗Website URL',
+  'Developer Notes',
   'ℹ️Credentials',
   '🔗Promo Video URL (🖥️ only)',
   '🔗Demo Video URL',
   '🔗Privacy Policy URL',
   '🔗Support Email/URL',
   '🔗Terms & Conditions URL',
+  'Alt Text Screenshot 1',
+  'Alt Text Screenshot 2',
+  'Alt Text Screenshot 3',
+  'Alt Text Screenshot 4',
+  'Alt Text Screenshot 5',
   '🖼️Thumbnail Image',
   '🖼️Carousel Images'
 ];
@@ -69,6 +77,7 @@ export default async function handler(req, res) {
   }
 
   const { clientId } = req.query;
+  const autofillToken = req.headers['x-autofill-token'];
 
   if (!clientId) {
     return res.status(400).json({
@@ -81,6 +90,18 @@ export default async function handler(req, res) {
     return res.status(400).json({
       success: false,
       message: 'Invalid Client ID format'
+    });
+  }
+
+  const tokenIsValid = await verifyAutofillToken({
+    token: Array.isArray(autofillToken) ? autofillToken[0] : autofillToken,
+    clientId
+  });
+
+  if (!tokenIsValid) {
+    return res.status(401).json({
+      success: false,
+      message: 'Autofill authorization is missing or expired. Please verify the Client ID again.'
     });
   }
 

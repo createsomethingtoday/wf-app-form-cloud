@@ -1,3 +1,6 @@
+import { createAutofillToken } from '../../lib/autofillToken';
+import { getEnvValue } from '../../lib/cloudflareRuntime';
+
 export default async function handler(req, res) {
   if (req.method !== 'POST') {
     return res.status(405).json({ message: 'Method not allowed' });
@@ -43,9 +46,14 @@ export default async function handler(req, res) {
 
       const data = await response.json();
 
-      // Return the same structure as the original API
+      const clientIdExists = data.clientIdExists || false;
+      const autofillToken = clientIdExists && submissionType === 'Update'
+        ? await createAutofillToken({ clientId })
+        : null;
+
       res.status(200).json({
-        clientIdExists: data.clientIdExists || false,
+        clientIdExists,
+        autofillToken,
         message: data.message || 'Client ID check completed'
       });
 
@@ -53,11 +61,15 @@ export default async function handler(req, res) {
       console.error('External API error:', apiError);
 
       // Fallback logic if the external API is unavailable
-      const validClientIds = process.env.VALID_CLIENT_IDS?.split(',') || [];
+      const validClientIds = (await getEnvValue('VALID_CLIENT_IDS'))?.split(',') || [];
       const clientIdExists = validClientIds.includes(clientId);
+      const autofillToken = clientIdExists && submissionType === 'Update'
+        ? await createAutofillToken({ clientId })
+        : null;
 
       res.status(200).json({
         clientIdExists,
+        autofillToken,
         message: 'Client ID check completed (fallback)'
       });
     }

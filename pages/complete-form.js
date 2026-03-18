@@ -8,13 +8,68 @@ import CheckboxGroup from '../components/CheckboxGroup';
 import { withBasePath } from '../lib/runtimePaths';
 
 const QuillEditor = dynamic(() => import('../components/QuillEditor'), { ssr: false });
+const DEFAULT_UPDATE_TOGGLES_ENABLED = process.env.NEXT_PUBLIC_UPDATE_TOGGLES_ENABLED === 'true';
+const DEFAULT_AUTOFILL_UPDATE_ENABLED = process.env.NEXT_PUBLIC_AUTOFILL_UPDATE_ENABLED === 'true';
+
+function parseScopesField(scopesField) {
+  if (Array.isArray(scopesField)) {
+    return scopesField.filter(Boolean);
+  }
+
+  if (typeof scopesField !== 'string') {
+    return [];
+  }
+
+  try {
+    const parsed = JSON.parse(scopesField);
+    return Array.isArray(parsed) ? parsed.filter(Boolean) : [];
+  } catch {
+    return scopesField
+      .split(/\n|,/)
+      .map((scope) => scope.trim())
+      .filter(Boolean);
+  }
+}
+
+function parseFeaturesText(featuresText) {
+  if (typeof featuresText !== 'string') {
+    return [];
+  }
+
+  return featuresText
+    .split('\n')
+    .map((feature) => feature.replace(/^[-*]\s*/, '').replace(/^\d+\.\s*/, '').trim())
+    .filter(Boolean)
+    .slice(0, 5);
+}
+
+function parseSupportField(supportField = '') {
+  const parts = String(supportField)
+    .split(/\n|,/)
+    .map((part) => part.trim())
+    .filter(Boolean);
+
+  const supportEmail = parts.find((part) => /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(part)) || '';
+  const supportUrl = parts.find((part) => /^https?:\/\//i.test(part)) || '';
+
+  if (!supportEmail && !supportUrl && /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(supportField.trim())) {
+    return { supportEmail: supportField.trim(), supportUrl: '' };
+  }
+
+  if (!supportEmail && !supportUrl && /^https?:\/\//i.test(supportField.trim())) {
+    return { supportEmail: '', supportUrl: supportField.trim() };
+  }
+
+  return { supportEmail, supportUrl };
+}
 
 export default function CompleteMarketplaceForm() {
   // Feature flag: Update flow toggles
-  const [updateTogglesEnabled, setUpdateTogglesEnabled] = useState(false);
+  const [updateTogglesEnabled, setUpdateTogglesEnabled] = useState(DEFAULT_UPDATE_TOGGLES_ENABLED);
 
   // Feature flag: Auto-fill update from Airtable
-  const [autofillUpdateEnabled, setAutofillUpdateEnabled] = useState(false);
+  const [autofillUpdateEnabled, setAutofillUpdateEnabled] = useState(DEFAULT_AUTOFILL_UPDATE_ENABLED);
+  const [autofillToken, setAutofillToken] = useState('');
   const [isLoadingAppData, setIsLoadingAppData] = useState(false);
   const [airtableImages, setAirtableImages] = useState({
     appIcon: null,      // { url, filename }
@@ -44,6 +99,9 @@ export default function CompleteMarketplaceForm() {
 
   // Detect feature flags on mount
   useEffect(() => {
+    let nextUpdateTogglesEnabled = DEFAULT_UPDATE_TOGGLES_ENABLED;
+    let nextAutofillUpdateEnabled = DEFAULT_AUTOFILL_UPDATE_ENABLED;
+
     // First, check iframe's own URL parameters
     const urlParams = new URLSearchParams(window.location.search);
     let updateTogglesFlag = urlParams.get('updateToggles');
@@ -62,14 +120,19 @@ export default function CompleteMarketplaceForm() {
 
     // Set feature flags
     if (updateTogglesFlag === 'true') {
-      setUpdateTogglesEnabled(true);
+      nextUpdateTogglesEnabled = true;
     } else if (updateTogglesFlag === 'false') {
-      setUpdateTogglesEnabled(false);
+      nextUpdateTogglesEnabled = false;
     }
 
     if (autofillUpdateFlag === 'true') {
-      setAutofillUpdateEnabled(true);
+      nextAutofillUpdateEnabled = true;
+    } else if (autofillUpdateFlag === 'false') {
+      nextAutofillUpdateEnabled = false;
     }
+
+    setUpdateTogglesEnabled(nextUpdateTogglesEnabled);
+    setAutofillUpdateEnabled(nextAutofillUpdateEnabled);
 
     // Listen for feature flags from parent via postMessage
     const handleFeatureFlagMessage = (event) => {
@@ -240,6 +303,11 @@ export default function CompleteMarketplaceForm() {
 
     // Handle submission type changes - clear Client ID validation
     if (name === 'submissionType') {
+      setAutofillToken('');
+      setOriginalFormData(null);
+      setOriginalScopes([]);
+      setAirtableImages({ appIcon: null, screenshots: [] });
+      setScopeJustification('');
       setValidationState(prev => ({
         ...prev,
         clientIdVerified: false,
@@ -249,6 +317,11 @@ export default function CompleteMarketplaceForm() {
 
     // Handle Client ID changes - require re-verification
     if (name === 'clientId') {
+      setAutofillToken('');
+      setOriginalFormData(null);
+      setOriginalScopes([]);
+      setAirtableImages({ appIcon: null, screenshots: [] });
+      setScopeJustification('');
       setValidationState(prev => ({
         ...prev,
         clientIdVerified: false,
@@ -370,6 +443,7 @@ export default function CompleteMarketplaceForm() {
       // Handle different scenarios based on clientIdExists and submission type
       if (data.clientIdExists && submissionType === 'Update') {
         track('Client ID Verified', { submissionType: 'Update', status: 'success' });
+        setAutofillToken(data.autofillToken || '');
         setValidationState(prev => ({
           ...prev,
           clientIdVerifying: false,
@@ -378,6 +452,7 @@ export default function CompleteMarketplaceForm() {
         }));
       } else if (!data.clientIdExists && submissionType === 'Update') {
         track('Client ID Verification Failed', { submissionType: 'Update', reason: 'not_found' });
+        setAutofillToken('');
         setValidationState(prev => ({
           ...prev,
           clientIdVerifying: false,
@@ -386,6 +461,7 @@ export default function CompleteMarketplaceForm() {
         }));
       } else if (data.clientIdExists && submissionType === 'New') {
         track('Client ID Verification Failed', { submissionType: 'New', reason: 'already_exists' });
+        setAutofillToken('');
         setValidationState(prev => ({
           ...prev,
           clientIdVerifying: false,
@@ -394,6 +470,7 @@ export default function CompleteMarketplaceForm() {
         }));
       } else if (!data.clientIdExists && submissionType === 'New') {
         track('Client ID Verified', { submissionType: 'New', status: 'success' });
+        setAutofillToken('');
         setValidationState(prev => ({
           ...prev,
           clientIdVerifying: false,
@@ -403,6 +480,7 @@ export default function CompleteMarketplaceForm() {
       }
     } catch (error) {
       console.error('Error:', error);
+      setAutofillToken('');
       setValidationState(prev => ({
         ...prev,
         clientIdVerifying: false,
@@ -418,10 +496,22 @@ export default function CompleteMarketplaceForm() {
       return;
     }
 
+    if (!autofillToken) {
+      setFormStatus({
+        type: 'error',
+        message: 'Autofill authorization is missing or expired. Please verify the Client ID again.'
+      });
+      return;
+    }
+
     setIsLoadingAppData(true);
 
     try {
-      const response = await fetch(withBasePath(`/api/airtable/get-app?clientId=${encodeURIComponent(formData.clientId)}`));
+      const response = await fetch(withBasePath(`/api/airtable/get-app?clientId=${encodeURIComponent(formData.clientId)}`), {
+        headers: {
+          'x-autofill-token': autofillToken
+        }
+      });
       const data = await response.json();
 
       if (!response.ok || !data.success) {
@@ -437,16 +527,7 @@ export default function CompleteMarketplaceForm() {
       const fields = data.app.fields;
 
       // Handle support email/URL - field contains both in a single field
-      const supportField = fields['🔗Support Email/URL'] || '';
-      let supportEmail = '';
-      let supportUrl = '';
-
-      // Check if it's an email or URL
-      if (supportField.includes('@')) {
-        supportEmail = supportField;
-      } else if (supportField.startsWith('http')) {
-        supportUrl = supportField;
-      }
+      const { supportEmail, supportUrl } = parseSupportField(fields['🔗Support Email/URL'] || '');
 
       // Build the loaded data object
       const loadedData = {
@@ -454,12 +535,8 @@ export default function CompleteMarketplaceForm() {
         appName: fields['Name'] || '',
         appCapabilities: fields['ℹ️Capabilities (🖥️ only)'] || '',
         appInstallUrl: fields['🔗Install URL (🖥️ only)'] || '',
-        appScopes: (() => {
-          const scopesField = fields['ℹ️Scopes'] || fields['Scopes'] || fields['all-selected-scopes'];
-          try {
-            return typeof scopesField === 'string' ? JSON.parse(scopesField) : (Array.isArray(scopesField) ? scopesField : []);
-          } catch { return []; }
-        })(),
+        appScopes: parseScopesField(fields['ℹ️Scopes'] || fields['Scopes'] || fields['all-selected-scopes']),
+        appAvatarAltText: fields['App Avatar Alt Text'] || '',
         // Payment type is already an array in Airtable
         paymentType: fields['ℹ️💲Payment Types'] || [],
         // Visibility is a string, wrap in array
@@ -470,11 +547,17 @@ export default function CompleteMarketplaceForm() {
         creatorWebsite: fields['👀🎨📧 Creator WF Account Email (Override)'] || '',
         creatorContactEmail: fields['🎨📧 Creator Email'] || '',
         appPreviewDescription: fields['ℹ️Description (Short)'] || '',
-        // Long description comes as HTML, strip tags for plain text
-        appDetailDescription: fields['ℹ️Description (Long).html']?.replace(/<[^>]*>/g, '') || '',
-        // Features text already formatted with line breaks
-        appFeaturesOverview: fields['❓ℹ️✨Features Text (MIGRATE TO LINKED FIELD)']?.split('\n').filter(f => f.trim()).map(f => f.replace(/^-\s*/, '')) || [],
+        appDetailDescription: fields['ℹ️Description (Long).html'] || '',
+        appScreenshotAltTexts: [
+          fields['Alt Text Screenshot 1'] || '',
+          fields['Alt Text Screenshot 2'] || '',
+          fields['Alt Text Screenshot 3'] || '',
+          fields['Alt Text Screenshot 4'] || '',
+          fields['Alt Text Screenshot 5'] || ''
+        ],
+        appFeaturesOverview: parseFeaturesText(fields['❓ℹ️✨Features Text (MIGRATE TO LINKED FIELD)']),
         appWebsiteUrl: fields['🔗Website URL'] || '',
+        appDeveloperNotes: fields['Developer Notes'] || '',
         appAccessCredentials: fields['ℹ️Credentials'] || '',
         appVideoUrl: fields['🔗Promo Video URL (🖥️ only)'] || '',
         appDemoVideoUrl: fields['🔗Demo Video URL'] || '',
@@ -1635,6 +1718,17 @@ export default function CompleteMarketplaceForm() {
                     color: '#856404'
                   }}>
                     ℹ️ To load existing app data, please select <strong>"App Update"</strong> from the Submission Type dropdown above.
+                  </div>
+                ) : !autofillToken ? (
+                  <div style={{
+                    padding: '0.75rem',
+                    backgroundColor: '#fff3cd',
+                    border: '1px solid #ffc107',
+                    borderRadius: '4px',
+                    fontSize: '0.875rem',
+                    color: '#856404'
+                  }}>
+                    Autofill is not available in this environment yet. Set `ADMIN_API_TOKEN` or `AUTOFILL_TOKEN_SECRET`, then verify the Client ID again.
                   </div>
                 ) : (
                   <>
