@@ -1506,18 +1506,20 @@ export default function CompleteMarketplaceForm() {
               Submission type
               {isFieldRequired('submissionType') && <span className="dyn-asterisk">*</span>}
             </label>
-            <select
-              id="Submission-Type"
-              name="submissionType"
-              className="input cc-select w-select"
-              value={formData.submissionType}
-              onChange={(e) => handleInputChange('submissionType', e.target.value)}
-              required={isFieldRequired('submissionType')}
-            >
-              <option value="">Select...</option>
-              <option value="New">New App</option>
-              <option value="Update">App Update</option>
-            </select>
+            <div className="select-field">
+              <select
+                id="Submission-Type"
+                name="submissionType"
+                className="input cc-select w-select"
+                value={formData.submissionType}
+                onChange={(e) => handleInputChange('submissionType', e.target.value)}
+                required={isFieldRequired('submissionType')}
+              >
+                <option value="">Select...</option>
+                <option value="New">New App</option>
+                <option value="Update">App Update</option>
+              </select>
+            </div>
           </div>
 
           {formData.submissionType === 'Update' && (
@@ -1711,19 +1713,21 @@ export default function CompleteMarketplaceForm() {
                 </p>
               </div>
             </div>
-            <select
-              id="App-Capabilities"
-              name="appCapabilities"
-              className="input cc-select w-select"
-              value={formData.appCapabilities}
-              onChange={(e) => handleInputChange('appCapabilities', e.target.value)}
-              required={isFieldRequired('appCapabilities') && shouldShowSection('appCapabilities')}
-            >
-              <option value="">Select one...</option>
-              <option value="Data Client v2">Data Client</option>
-              <option value="Designer Extension">Designer Extension</option>
-              <option value="Hybrid">Hybrid</option>
-            </select>
+            <div className="select-field">
+              <select
+                id="App-Capabilities"
+                name="appCapabilities"
+                className="input cc-select w-select"
+                value={formData.appCapabilities}
+                onChange={(e) => handleInputChange('appCapabilities', e.target.value)}
+                required={isFieldRequired('appCapabilities') && shouldShowSection('appCapabilities')}
+              >
+                <option value="">Select one...</option>
+                <option value="Data Client v2">Data Client</option>
+                <option value="Designer Extension">Designer Extension</option>
+                <option value="Hybrid">Hybrid</option>
+              </select>
+            </div>
           </div>
 
           {/* App Install URL - Only shown for Data Client v2 and Hybrid apps */}
@@ -1762,30 +1766,32 @@ export default function CompleteMarketplaceForm() {
               </div>
             </div>
             <div style={{ display: 'flex', gap: '0.75rem', alignItems: 'stretch' }}>
-              <select
-                id="scope-selector"
-                className="input cc-select w-select"
-                value={selectedScope}
-                onChange={(e) => setSelectedScope(e.target.value)}
-                style={{ flex: 1, marginBottom: 0 }}
-              >
-                <option value="">Select a scope to add...</option>
-                <option value="app-subscriptions">App Subscriptions</option>
-                <option value="assets">Assets</option>
-                <option value="authorized-user">Authorized user</option>
-                <option value="cms">CMS</option>
-                <option value="comments">Comments</option>
-                <option value="components">Components</option>
-                <option value="custom-code">Custom Code</option>
-                <option value="ecommerce">Ecommerce</option>
-                <option value="forms">Forms</option>
-                <option value="pages">Pages</option>
-                <option value="sites">Sites</option>
-                <option value="site-activity">Site activity</option>
-                <option value="site-config">Site config</option>
-                <option value="user-accounts">User Accounts</option>
-                <option value="workspace">Workspace</option>
-              </select>
+              <div className="select-field" style={{ flex: 1 }}>
+                <select
+                  id="scope-selector"
+                  className="input cc-select w-select"
+                  value={selectedScope}
+                  onChange={(e) => setSelectedScope(e.target.value)}
+                  style={{ marginBottom: 0 }}
+                >
+                  <option value="">Select a scope to add...</option>
+                  <option value="app-subscriptions">App Subscriptions</option>
+                  <option value="assets">Assets</option>
+                  <option value="authorized-user">Authorized user</option>
+                  <option value="cms">CMS</option>
+                  <option value="comments">Comments</option>
+                  <option value="components">Components</option>
+                  <option value="custom-code">Custom Code</option>
+                  <option value="ecommerce">Ecommerce</option>
+                  <option value="forms">Forms</option>
+                  <option value="pages">Pages</option>
+                  <option value="sites">Sites</option>
+                  <option value="site-activity">Site activity</option>
+                  <option value="site-config">Site config</option>
+                  <option value="user-accounts">User Accounts</option>
+                  <option value="workspace">Workspace</option>
+                </select>
+              </div>
               <button
                 type="button"
                 className="btn w-button"

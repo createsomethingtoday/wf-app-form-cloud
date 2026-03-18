@@ -137,6 +137,36 @@
   background-color: var(--_color---neutral--white, #ffffff);
 }
 
+.select-field {
+  position: relative;
+}
+
+.select-field::after {
+  content: "";
+  position: absolute;
+  right: 1.5rem;
+  top: 50%;
+  width: 0.65rem;
+  height: 0.65rem;
+  border-right: 2px solid var(--colors--text, var(--_color---neutral--black, #080808));
+  border-bottom: 2px solid var(--colors--text, var(--_color---neutral--black, #080808));
+  transform: translateY(-65%) rotate(45deg);
+  pointer-events: none;
+  opacity: 0.8;
+}
+
+.select-field > .input.cc-select.w-select {
+  padding-right: 3.5rem !important;
+  appearance: none !important;
+  -webkit-appearance: none !important;
+  -moz-appearance: none !important;
+  background-image: none !important;
+}
+
+.select-field > .input.cc-select.w-select::-ms-expand {
+  display: none;
+}
+
 .scope-chip-list {
   display: flex;
   flex-wrap: wrap;
