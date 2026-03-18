@@ -3,8 +3,7 @@ import dynamic from 'next/dynamic';
 import { TriangleAlert } from 'lucide-react';
 import { withBasePath } from '../lib/runtimePaths';
 
-// Dynamically import ReactQuill to avoid SSR issues
-const ReactQuill = dynamic(() => import('react-quill'), { ssr: false });
+const QuillEditor = dynamic(() => import('../components/QuillEditor'), { ssr: false });
 
 export default function EnhancedMarketplaceForm() {
   const [formData, setFormData] = useState({
@@ -579,7 +578,7 @@ export default function EnhancedMarketplaceForm() {
               Long description
               {isFieldRequired('longDescription') && <span className="dyn-asterisk">*</span>}
             </label>
-            <ReactQuill
+            <QuillEditor
               ref={quillRef}
               theme="snow"
               value={formData.longDescription}

@@ -3,7 +3,7 @@ import dynamic from 'next/dynamic';
 import { TriangleAlert } from 'lucide-react';
 import { withBasePath } from '../lib/runtimePaths';
 
-const ReactQuill = dynamic(() => import('react-quill'), { ssr: false });
+const QuillEditor = dynamic(() => import('../components/QuillEditor'), { ssr: false });
 
 export default function CompleteMarketplaceForm() {
   // Dark mode detection
@@ -1316,7 +1316,7 @@ export default function CompleteMarketplaceForm() {
             <div className="rich-text-component">
               <p>Character limit: 100 characters</p>
             </div>
-            <ReactQuill
+            <QuillEditor
               ref={quillDescRef}
               theme="snow"
               value={formData.appPreviewDescription}
@@ -1338,7 +1338,7 @@ export default function CompleteMarketplaceForm() {
               <p>Character limit: 10,000 characters<br />
               Markdown supported, but not links</p>
             </div>
-            <ReactQuill
+            <QuillEditor
               ref={quillDetailRef}
               theme="snow"
               value={formData.appDetailDescription}

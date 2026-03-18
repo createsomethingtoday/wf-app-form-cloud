@@ -7,7 +7,7 @@ import TextAreaField from '../components/TextAreaField';
 import CheckboxGroup from '../components/CheckboxGroup';
 import { withBasePath } from '../lib/runtimePaths';
 
-const ReactQuill = dynamic(() => import('react-quill'), { ssr: false });
+const QuillEditor = dynamic(() => import('../components/QuillEditor'), { ssr: false });
 
 export default function CompleteMarketplaceForm() {
   // Feature flag: Update flow toggles
@@ -2349,11 +2349,10 @@ export default function CompleteMarketplaceForm() {
               </div>
             </div>
             <div className="w-embed">
-              <ReactQuill
+              <QuillEditor
                 ref={quillDetailRef}
                 value={formData.appDetailDescription}
                 onChange={(htmlContent) => {
-                  // ReactQuill onChange returns HTML by default
                   handleInputChange('appDetailDescription', htmlContent);
                 }}
                 theme="snow"
