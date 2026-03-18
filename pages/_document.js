@@ -1,32 +1,44 @@
 import { Html, Head, Main, NextScript } from 'next/document'
 import { withAssetPrefix } from '../lib/runtimePaths';
 
-export default function Document() {
+function withDocumentAssetPrefix(path, assetPrefix = '') {
+  const normalizedPath = path.startsWith('/') ? path : `/${path}`;
+  if (!assetPrefix) {
+    return withAssetPrefix(normalizedPath);
+  }
+
+  const normalizedPrefix = assetPrefix.replace(/\/+$/, '');
+  return `${normalizedPrefix}${normalizedPath}`;
+}
+
+export default function Document(props) {
+  const assetPrefix = props?.__NEXT_DATA__?.assetPrefix || '';
+
   return (
     <Html lang="en">
       <Head>
         {/* Load Webflow CSS files locally */}
         <link
           rel="stylesheet"
-          href={withAssetPrefix('/webflow-shared.css')}
+          href={withDocumentAssetPrefix('/webflow-shared.css', assetPrefix)}
           type="text/css"
           media="all"
         />
         <link
           rel="stylesheet"
-          href={withAssetPrefix('/webflow-main.css')}
+          href={withDocumentAssetPrefix('/webflow-main.css', assetPrefix)}
           type="text/css"
           media="all"
         />
         <link
           rel="stylesheet"
-          href={withAssetPrefix('/webflow-marketing.css')}
+          href={withDocumentAssetPrefix('/webflow-marketing.css', assetPrefix)}
           type="text/css"
           media="all"
         />
         <link
           rel="stylesheet"
-          href={withAssetPrefix('/custom-form-styles.css')}
+          href={withDocumentAssetPrefix('/custom-form-styles.css', assetPrefix)}
           type="text/css"
           media="all"
         />
