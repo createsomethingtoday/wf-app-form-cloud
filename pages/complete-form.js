@@ -1799,39 +1799,15 @@ export default function CompleteMarketplaceForm() {
 
             {/* Selected scopes display */}
             {formData.appScopes.length > 0 && (
-              <div style={{ display: 'flex', flexWrap: 'wrap', gap: '8px', marginTop: '12px' }}>
+              <div className="scope-chip-list">
                 {formData.appScopes.map(scope => (
-                  <div
-                    key={scope}
-                    style={{
-                      display: 'flex',
-                      alignItems: 'center',
-                      gap: '8px',
-                      padding: '6px 12px',
-                      backgroundColor: 'rgba(59, 130, 246, 0.1)',
-                      border: '1px solid rgba(59, 130, 246, 0.3)',
-                      borderRadius: '4px',
-                      fontSize: '14px',
-                      color: 'inherit'
-                    }}
-                  >
+                  <div key={scope} className="scope-chip">
                     <span>{scope}</span>
                     <button
                       type="button"
                       onClick={() => handleRemoveScope(scope)}
-                      style={{
-                        background: 'none',
-                        border: 'none',
-                        cursor: 'pointer',
-                        fontSize: '18px',
-                        padding: '0',
-                        lineHeight: 1,
-                        color: 'inherit',
-                        opacity: 0.7
-                      }}
+                      className="scope-chip-remove"
                       aria-label={`Remove ${scope}`}
-                      onMouseEnter={(e) => e.currentTarget.style.opacity = '1'}
-                      onMouseLeave={(e) => e.currentTarget.style.opacity = '0.7'}
                     >
                       ×
                     </button>

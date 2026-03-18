@@ -116,14 +116,67 @@
   background-color: var(--colors--background, var(--_color---neutral--white, #ffffff)) !important;
   font-size: var(--_components---input--font-size, 1rem) !important;
   padding: 1.5rem !important;
+  padding-right: 3.5rem !important;
   width: 100%;
   height: auto !important;
+  appearance: none !important;
+  -webkit-appearance: none !important;
+  -moz-appearance: none !important;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16' fill='none'%3E%3Cpath d='M4 6l4 4 4-4' stroke='%23080808' stroke-width='1.75' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E") !important;
+  background-repeat: no-repeat !important;
+  background-position: right 1.25rem center !important;
+  background-size: 1rem !important;
+  color-scheme: light !important;
 }
 
 .input.cc-select.w-select:focus {
   border-color: var(--colors--primary-accent, var(--_color---primary--webflow-blue, #146ef5)) !important;
   outline: none !important;
   box-shadow: 0 0 0 2px color-mix(in srgb, var(--colors--primary-accent, #146ef5) 20%, transparent) !important;
+}
+
+.input.cc-select.w-select::-ms-expand {
+  display: none;
+}
+
+.input.cc-select.w-select option,
+.input.cc-select.w-select optgroup {
+  color: var(--_color---neutral--black, #080808);
+  background-color: var(--_color---neutral--white, #ffffff);
+}
+
+.scope-chip-list {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  margin-top: 0.75rem;
+}
+
+.scope-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.375rem 0.75rem;
+  border-radius: var(--_components---input--border-radius, 0.25rem);
+  border: 1px solid color-mix(in srgb, var(--colors--primary-accent, #146ef5) 35%, transparent);
+  background-color: color-mix(in srgb, var(--colors--primary-accent, #146ef5) 10%, var(--colors--background, #ffffff));
+  color: var(--colors--text, var(--_color---neutral--black, #080808));
+  font-size: 0.875rem;
+}
+
+.scope-chip-remove {
+  background: none;
+  border: none;
+  cursor: pointer;
+  color: inherit;
+  opacity: 0.7;
+  padding: 0;
+  line-height: 1;
+  font-size: 1.125rem;
+}
+
+.scope-chip-remove:hover {
+  opacity: 1;
 }
 
 /* Textarea styles */
@@ -393,15 +446,25 @@ input[type="file"].w-input {
   color: var(--colors--text-secondary, var(--_color---neutral--gray-600, #5a5a5a)) !important;
 }
 
-/* Dark mode support via CSS variables */
-@media (prefers-color-scheme: dark) {
-  :root {
-    --colors--background: var(--_color---neutral--black, #080808);
-    --colors--text: var(--_color---neutral--white, #ffffff);
-    --colors--text-secondary: var(--_color---neutral--gray-300, #ababab);
-    --colors--border: var(--_color---neutral--gray-600, #5a5a5a);
-    --colors--secondary-background: var(--_color---neutral--gray-900, #171717);
-  }
+/* Dark mode support via explicit class so native form controls stay in sync */
+.dark-mode {
+  --colors--background: var(--_color---neutral--black, #080808);
+  --colors--text: var(--_color---neutral--white, #ffffff);
+  --colors--text-secondary: var(--_color---neutral--gray-300, #ababab);
+  --colors--border: var(--_color---neutral--gray-600, #5a5a5a);
+  --colors--secondary-background: var(--_color---neutral--gray-900, #171717);
+  color-scheme: dark;
+}
+
+.dark-mode .input.cc-select.w-select {
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16' fill='none'%3E%3Cpath d='M4 6l4 4 4-4' stroke='%23ffffff' stroke-width='1.75' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E") !important;
+  color-scheme: dark !important;
+}
+
+.dark-mode .input.cc-select.w-select option,
+.dark-mode .input.cc-select.w-select optgroup {
+  color: var(--_color---neutral--white, #ffffff);
+  background-color: var(--_color---neutral--gray-900, #171717);
 }
 
 /* Loading states */
