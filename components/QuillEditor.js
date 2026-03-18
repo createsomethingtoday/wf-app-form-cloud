@@ -3,6 +3,10 @@ import Quill from 'quill';
 
 const EMPTY_DOCUMENT = '<p><br></p>';
 
+function normalizeValue(value) {
+  return value || EMPTY_DOCUMENT;
+}
+
 const QuillEditor = forwardRef(function QuillEditor(
   {
     className,
@@ -19,6 +23,16 @@ const QuillEditor = forwardRef(function QuillEditor(
   const editorHostRef = useRef(null);
   const editorRef = useRef(null);
   const onChangeRef = useRef(onChange);
+  const initOptionsRef = useRef(null);
+
+  if (!initOptionsRef.current) {
+    initOptionsRef.current = {
+      formats,
+      modules,
+      placeholder,
+      theme,
+    };
+  }
 
   useEffect(() => {
     onChangeRef.current = onChange;
@@ -29,18 +43,18 @@ const QuillEditor = forwardRef(function QuillEditor(
   }));
 
   useEffect(() => {
-    if (!editorHostRef.current || editorRef.current) {
+    const hostElement = editorHostRef.current;
+    if (!hostElement || editorRef.current) {
       return undefined;
     }
 
-    const editor = new Quill(editorHostRef.current, {
-      formats,
-      modules,
-      placeholder,
-      theme,
-    });
+    const editorElement = document.createElement('div');
+    hostElement.innerHTML = '';
+    hostElement.appendChild(editorElement);
 
-    editor.root.innerHTML = value || EMPTY_DOCUMENT;
+    const editor = new Quill(editorElement, initOptionsRef.current);
+
+    editor.root.innerHTML = normalizeValue(value);
 
     const handleTextChange = () => {
       onChangeRef.current?.(editor.root.innerHTML);
@@ -52,11 +66,9 @@ const QuillEditor = forwardRef(function QuillEditor(
     return () => {
       editor.off('text-change', handleTextChange);
       editorRef.current = null;
-      if (editorHostRef.current) {
-        editorHostRef.current.innerHTML = '';
-      }
+      hostElement.innerHTML = '';
     };
-  }, [formats, modules, placeholder, theme, value]);
+  }, []);
 
   useEffect(() => {
     const editor = editorRef.current;
@@ -64,7 +76,7 @@ const QuillEditor = forwardRef(function QuillEditor(
       return;
     }
 
-    const nextValue = value || EMPTY_DOCUMENT;
+    const nextValue = normalizeValue(value);
     if (editor.root.innerHTML !== nextValue) {
       const selection = editor.getSelection();
       editor.root.innerHTML = nextValue;
