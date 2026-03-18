@@ -22,6 +22,11 @@ export default async function handler(req, res) {
   // Verify cron secret for security
   const authHeader = req.headers.authorization;
   const cronSecret = await getEnvValue('CRON_SECRET');
+  if (!cronSecret) {
+    console.error('CRON_SECRET is not configured');
+    return res.status(503).json({ message: 'CRON_SECRET is not configured' });
+  }
+
   if (authHeader !== `Bearer ${cronSecret}`) {
     return res.status(401).json({ message: 'Unauthorized' });
   }

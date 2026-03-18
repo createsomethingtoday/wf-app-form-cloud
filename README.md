@@ -100,7 +100,7 @@ This project now includes a Webflow Cloud-compatible app shape:
 - `webflow.json` declares the project as a Next.js Webflow Cloud app
 - `wrangler.json` carries the minimal Wrangler metadata plus the storage bindings Webflow Cloud reads at deploy time
 - `next.config.js` respects `BASE_URL` and `ASSETS_PREFIX` so the app can be mounted inside Webflow product paths
-- `/api/submit-form` runs as an edge route using `Request`, `FormData`, and `File` APIs instead of `formidable`/`fs`
+- `/api/submit-form` runs as an App Router route handler using `Request`, `FormData`, and `File` APIs instead of `formidable`/`fs`
 - `scripts/migrations/0001_create_submissions.sql` boots the D1 schema for fresh Webflow Cloud environments
 
 ### Webflow Cloud prerequisites
@@ -128,6 +128,7 @@ webflow cloud deploy
 
 - Webflow Cloud currently expects a Next.js 15+ project.
 - Webflow Cloud manages the worker runtime config; keep repo `wrangler.json` limited to storage bindings and migrations.
+- `@opennextjs/cloudflare` expects the Node runtime, so do not add `export const runtime = "edge"` to app routes.
 - The Cloudflare/OpenNext code path still exists, but direct standalone Cloudflare deployment now needs its own full worker config outside the Webflow Cloud `wrangler.json`.
 - `BASE_URL` and `ASSETS_PREFIX` are used for in-product mounting; the app defaults to root paths when they are unset.
 
@@ -252,6 +253,9 @@ Verify if a client ID is valid.
 
 #### `GET /api/airtable/get-app?clientId=xxx`
 Get existing app data for auto-fill (Update submissions).
+
+- `clientId` must be a valid 64-character hexadecimal string
+- Response is limited to the Airtable fields used by the update autofill flow
 
 **Response**:
 ```json

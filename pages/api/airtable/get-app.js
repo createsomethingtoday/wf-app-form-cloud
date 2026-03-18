@@ -1,9 +1,67 @@
+import { getEnvValue } from '../../../lib/cloudflareRuntime';
+
+const CLIENT_ID_PATTERN = /^[a-f0-9]{64}$/i;
+const CLIENT_ID_FIELD_ID = 'fldtwvVVlTeDRlTYV';
+const ALLOWED_FIELD_NAMES = [
+  'Name',
+  'ℹ️Capabilities (🖥️ only)',
+  '🔗Install URL (🖥️ only)',
+  'ℹ️Scopes',
+  'Scopes',
+  'all-selected-scopes',
+  'ℹ️💲Payment Types',
+  'ℹ️Visibility (🖥️ only)',
+  'ℹ️🪣Categories (Text)',
+  '🎨Creator Name',
+  '👀🎨📧 Creator WF Account Email (Override)',
+  '🎨📧 Creator Email',
+  'ℹ️Description (Short)',
+  'ℹ️Description (Long).html',
+  '❓ℹ️✨Features Text (MIGRATE TO LINKED FIELD)',
+  '🔗Website URL',
+  'ℹ️Credentials',
+  '🔗Promo Video URL (🖥️ only)',
+  '🔗Demo Video URL',
+  '🔗Privacy Policy URL',
+  '🔗Support Email/URL',
+  '🔗Terms & Conditions URL',
+  '🖼️Thumbnail Image',
+  '🖼️Carousel Images'
+];
+
+function sanitizeAttachmentList(value) {
+  if (!Array.isArray(value)) {
+    return value;
+  }
+
+  return value.map((attachment) => ({
+    url: attachment?.url,
+    filename: attachment?.filename,
+    thumbnails: attachment?.thumbnails || null
+  }));
+}
+
+function buildAutofillFields(fields = {}) {
+  return ALLOWED_FIELD_NAMES.reduce((result, fieldName) => {
+    if (fields[fieldName] === undefined) {
+      return result;
+    }
+
+    if (fieldName === '🖼️Thumbnail Image' || fieldName === '🖼️Carousel Images') {
+      result[fieldName] = sanitizeAttachmentList(fields[fieldName]);
+      return result;
+    }
+
+    result[fieldName] = fields[fieldName];
+    return result;
+  }, {});
+}
+
 /**
  * Get App Data from Airtable by Client ID
  * GET /api/airtable/get-app?clientId=xxx
  *
- * Protected by autofillUpdate feature flag
- * Queries Airtable for existing app submission to enable auto-fill for updates
+ * Queries Airtable for the allowlisted fields needed by the update autofill flow
  */
 export default async function handler(req, res) {
   if (req.method !== 'GET') {
@@ -19,9 +77,16 @@ export default async function handler(req, res) {
     });
   }
 
+  if (!CLIENT_ID_PATTERN.test(clientId)) {
+    return res.status(400).json({
+      success: false,
+      message: 'Invalid Client ID format'
+    });
+  }
+
   try {
     // Airtable configuration
-    const AIRTABLE_API_KEY = process.env.AIRTABLE_API_KEY;
+    const AIRTABLE_API_KEY = await getEnvValue('AIRTABLE_API_KEY');
     const BASE_ID = 'appMoIgXMTTTNIc3p';
     const TABLE_ID = 'tblRwzpWoLgE9MrUm';
 
@@ -32,11 +97,9 @@ export default async function handler(req, res) {
       });
     }
 
-    // Search for records with matching Client ID using field ID
-    // Field ID: fldtwvVVlTeDRlTYV (more reliable than field name)
-    const filterFormula = `SEARCH("${clientId}", {fldtwvVVlTeDRlTYV}) > 0`;
+    const filterFormula = `{${CLIENT_ID_FIELD_ID}} = "${clientId}"`;
 
-    let url = `https://api.airtable.com/v0/${BASE_ID}/${TABLE_ID}?filterByFormula=${encodeURIComponent(filterFormula)}&maxRecords=1`;
+    const url = `https://api.airtable.com/v0/${BASE_ID}/${TABLE_ID}?filterByFormula=${encodeURIComponent(filterFormula)}&maxRecords=1`;
 
     const response = await fetch(url, {
       headers: {
@@ -53,38 +116,30 @@ export default async function handler(req, res) {
 
     console.log('Airtable query result:', {
       recordCount: data.records?.length || 0,
-      filterFormula: filterFormula,
       clientId
     });
 
     if (!data.records || data.records.length === 0) {
-      // Return more debug info
       return res.status(404).json({
         success: false,
-        message: 'No app found with this Client ID',
-        debug: {
-          clientId,
-          filterFormula: filterFormula,
-          recordCount: 0
-        }
+        message: 'No app found with this Client ID'
       });
     }
 
-    // Return the first matching record
     const record = data.records[0];
 
-    res.status(200).json({
+    return res.status(200).json({
       success: true,
       app: {
         id: record.id,
-        fields: record.fields,
+        fields: buildAutofillFields(record.fields),
         createdTime: record.createdTime
       }
     });
 
   } catch (error) {
     console.error('Airtable query error:', error);
-    res.status(500).json({
+    return res.status(500).json({
       success: false,
       message: 'Failed to query Airtable',
       error: error.message

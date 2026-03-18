@@ -1,7 +1,5 @@
 import { handleRuntimeSubmit } from '../../../lib/submitFormRuntime';
 
-export const runtime = 'edge';
-
 function methodNotAllowed() {
   return new Response(JSON.stringify({ message: 'Method not allowed' }), {
     status: 405,
