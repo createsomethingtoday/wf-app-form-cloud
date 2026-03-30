@@ -1,6 +1,7 @@
 {
   "$schema": "./node_modules/wrangler/config-schema.json",
   "name": "webflow-app-form",
+  "account_id": "9645bd52e640b8a4f40a3a55ff1dd75a",
   "main": "custom-worker.ts",
   "compatibility_date": "2026-03-17",
   "compatibility_flags": [
@@ -9,8 +10,8 @@
   "d1_databases": [
     {
       "binding": "SUBMISSIONS_DB",
-      "database_name": "webflow-app-form",
-      "database_id": "auto-generated-by-webflow-cloud",
+      "database_name": "wf-bl-app-form-cloud",
+      "database_id": "dff8622b-864e-4475-a4b7-29216881ea9b",
       "migrations_dir": "./scripts/migrations"
     }
   ],
