@@ -5,6 +5,10 @@ import { TriangleAlert } from 'lucide-react';
 import FormField from '../components/FormField';
 import TextAreaField from '../components/TextAreaField';
 import CheckboxGroup from '../components/CheckboxGroup';
+import {
+  MARKETPLACE_APP_CATEGORIES,
+  MAX_MARKETPLACE_APP_CATEGORIES,
+} from '../lib/marketplaceCategories';
 import { withBasePath } from '../lib/runtimePaths';
 
 const QuillEditor = dynamic(() => import('../components/QuillEditor'), { ssr: false });
@@ -2334,7 +2338,7 @@ export default function CompleteMarketplaceForm() {
             </label>
             <div data-wf--rich-text--alignment="left-align" className="rich-text-component paragraph-sm">
               <div className="rich-text w-richtext">
-                <p><span>Select up to 2 options that best describe your app<br/>Use CMD+Click/CTRL+Click to select multiple</span></p>
+                <p><span>Select up to {MAX_MARKETPLACE_APP_CATEGORIES} options that best describe your app<br/>Use CMD+Click/CTRL+Click to select multiple</span></p>
               </div>
             </div>
             <select
@@ -2347,33 +2351,19 @@ export default function CompleteMarketplaceForm() {
               value={formData.appCategory}
               onChange={(e) => {
                 const selectedOptions = Array.from(e.target.selectedOptions, option => option.value);
-                if (selectedOptions.length <= 2) {
+                if (selectedOptions.length <= MAX_MARKETPLACE_APP_CATEGORIES) {
                   handleInputChange('appCategory', selectedOptions);
                 }
               }}
             >
-              <option value="AI">AI</option>
-              <option value="Analytics">Analytics</option>
-              <option value="Asset Management">Asset Management</option>
-              <option value="Automation">Automation</option>
-              <option value="Compliance">Compliance</option>
-              <option value="Content Management">Content Management</option>
-              <option value="Customer Support">Customer Support</option>
-              <option value="Data Sync">Data Sync</option>
-              <option value="Design">Design</option>
-              <option value="Development and Coding">Development and Coding</option>
-              <option value="Ecommerce">Ecommerce</option>
-              <option value="Forms and Surveys">Forms and Surveys</option>
-              <option value="Icons">Icons</option>
-              <option value="Localization">Localization</option>
-              <option value="Marketing">Marketing</option>
-              <option value="Scheduling">Scheduling</option>
-              <option value="SEO">SEO</option>
-              <option value="User Management">User Management</option>
-              <option value="Utilities">Utilities</option>
+              {MARKETPLACE_APP_CATEGORIES.map((category) => (
+                <option key={category} value={category}>
+                  {category}
+                </option>
+              ))}
             </select>
             <div id="category-counter" style={{marginTop: '5px'}}>
-              {formData.appCategory.length} of 2 categories selected
+              {formData.appCategory.length} of {MAX_MARKETPLACE_APP_CATEGORIES} categories selected
             </div>
           </div>
           )}

@@ -1,6 +1,10 @@
 import { useEffect, useRef, useState } from 'react';
 import dynamic from 'next/dynamic';
 import { TriangleAlert } from 'lucide-react';
+import {
+  MARKETPLACE_APP_CATEGORIES,
+  MAX_MARKETPLACE_APP_CATEGORIES,
+} from '../lib/marketplaceCategories';
 import { withBasePath } from '../lib/runtimePaths';
 
 const QuillEditor = dynamic(() => import('../components/QuillEditor'), { ssr: false });
@@ -100,13 +104,6 @@ export default function CompleteMarketplaceForm() {
   const avatarFileRef = useRef();
   const screenshotFileRefs = useRef([]);
 
-  const appCategories = [
-    'AI', 'Analytics', 'Asset Management', 'Automation', 'Compliance',
-    'Content Management', 'Customer Support', 'Data Sync', 'Design',
-    'Development and Coding', 'Ecommerce', 'Forms and Surveys', 'Icons',
-    'Localization', 'Marketing', 'Scheduling', 'SEO', 'User Management', 'Utilities'
-  ];
-
   // Handle form field changes
   const handleInputChange = (name, value) => {
     setFormData(prev => ({
@@ -165,7 +162,7 @@ export default function CompleteMarketplaceForm() {
           ...prev,
           appCategory: currentCategories.filter(c => c !== category)
         };
-      } else if (currentCategories.length < 2) {
+      } else if (currentCategories.length < MAX_MARKETPLACE_APP_CATEGORIES) {
         return {
           ...prev,
           appCategory: [...currentCategories, category]
@@ -1292,19 +1289,19 @@ export default function CompleteMarketplaceForm() {
               Use CMD+Click/CTRL+Click to select multiple</p>
             </div>
             <div className="category-grid">
-              {appCategories.map((category) => (
+              {MARKETPLACE_APP_CATEGORIES.map((category) => (
                 <label key={category} className="category-item">
                   <input
                     type="checkbox"
                     checked={formData.appCategory.includes(category)}
                     onChange={() => handleCategoryChange(category)}
-                    disabled={!formData.appCategory.includes(category) && formData.appCategory.length >= 2}
+                    disabled={!formData.appCategory.includes(category) && formData.appCategory.length >= MAX_MARKETPLACE_APP_CATEGORIES}
                   />
                   <span className="category-name">{category}</span>
                 </label>
               ))}
             </div>
-            <p className="category-counter">{formData.appCategory.length} of 2 categories selected</p>
+            <p className="category-counter">{formData.appCategory.length} of {MAX_MARKETPLACE_APP_CATEGORIES} categories selected</p>
           </div>
 
           {/* App Preview Description */}
