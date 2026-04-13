@@ -785,7 +785,7 @@ export default function CompleteMarketplaceForm() {
           border: 1px solid var(--colors--primary-accent, var(--_color---primary--webflow-blue, #146ef5));
           outline: 2px solid var(--colors--primary-accent, var(--_color---primary--webflow-blue, #146ef5));
           outline-offset: 2px;
-          background-color: var(--_color---neutral--gray-900, #222);
+          background-color: var(--colors--secondary-background, var(--_color---neutral--gray-100, #171717));
         }
 
         .dark-mode .form-section {
@@ -839,7 +839,7 @@ export default function CompleteMarketplaceForm() {
         }
 
         .dark-mode .file-upload-area:hover {
-          background-color: var(--_color---neutral--gray-900, #222);
+          background-color: var(--colors--secondary-background, var(--_color---neutral--gray-100, #171717));
         }
 
         .dark-mode .character-count {

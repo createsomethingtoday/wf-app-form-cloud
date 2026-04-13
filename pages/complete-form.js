@@ -1487,7 +1487,7 @@ export default function CompleteMarketplaceForm() {
         padding: '1rem',
         marginBottom: '1rem',
         backgroundColor: isDarkMode
-          ? 'var(--_color---neutral--gray-900, #171717)'
+          ? 'var(--colors--secondary-background, var(--_color---neutral--gray-100, #171717))'
           : 'var(--_color---neutral--gray-100, #f0f0f0)',
         borderRadius: '8px',
         border: `2px solid ${isEnabled

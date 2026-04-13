@@ -470,11 +470,11 @@ input[type="file"].w-input {
 
 /* Dark mode support via explicit class so native form controls stay in sync */
 .dark-mode {
-  --colors--background: var(--_color---neutral--black, #080808);
-  --colors--text: var(--_color---neutral--white, #ffffff);
+  --colors--background: var(--_color---neutral--white, #080808);
+  --colors--text: var(--_color---neutral--black, #ffffff);
   --colors--text-secondary: var(--_color---neutral--gray-300, #ababab);
   --colors--border: var(--_color---neutral--gray-600, #5a5a5a);
-  --colors--secondary-background: var(--_color---neutral--gray-900, #171717);
+  --colors--secondary-background: var(--_color---neutral--gray-100, #171717);
   color-scheme: dark;
 }
 
@@ -485,8 +485,8 @@ input[type="file"].w-input {
 
 .dark-mode .input.cc-select.w-select option,
 .dark-mode .input.cc-select.w-select optgroup {
-  color: var(--_color---neutral--white, #ffffff);
-  background-color: var(--_color---neutral--gray-900, #171717);
+  color: var(--colors--text, var(--_color---neutral--black, #ffffff));
+  background-color: var(--colors--secondary-background, var(--_color---neutral--gray-100, #171717));
 }
 
 /* Loading states */
