@@ -6,6 +6,11 @@ import {
   MAX_MARKETPLACE_APP_CATEGORIES,
 } from '../lib/marketplaceCategories';
 import { withBasePath } from '../lib/runtimePaths';
+import {
+  applyThemeMode,
+  detectClientTheme,
+  inferThemeFromParentStyles
+} from '../lib/themeSupport';
 
 const QuillEditor = dynamic(() => import('../components/QuillEditor'), { ssr: false });
 
@@ -14,18 +19,14 @@ export default function CompleteMarketplaceForm() {
   const [isDarkMode, setIsDarkMode] = useState(false);
 
   useEffect(() => {
-    // Check for dark mode preference
-    const checkDarkMode = () => {
-      const darkModeMediaQuery = window.matchMedia('(prefers-color-scheme: dark)');
-      setIsDarkMode(darkModeMediaQuery.matches);
+    const syncDarkMode = () => {
+      setIsDarkMode(detectClientTheme(window) === 'dark');
     };
 
-    // Initial check
-    checkDarkMode();
+    syncDarkMode();
 
-    // Listen for changes
     const darkModeMediaQuery = window.matchMedia('(prefers-color-scheme: dark)');
-    const handleChange = (e) => setIsDarkMode(e.matches);
+    const handleChange = () => syncDarkMode();
 
     if (darkModeMediaQuery.addEventListener) {
       darkModeMediaQuery.addEventListener('change', handleChange);
@@ -34,12 +35,16 @@ export default function CompleteMarketplaceForm() {
       darkModeMediaQuery.addListener(handleChange);
     }
 
+    window.addEventListener('storage', handleChange);
+
     return () => {
       if (darkModeMediaQuery.removeEventListener) {
         darkModeMediaQuery.removeEventListener('change', handleChange);
       } else {
         darkModeMediaQuery.removeListener(handleChange);
       }
+
+      window.removeEventListener('storage', handleChange);
     };
   }, []);
   const [formData, setFormData] = useState({
@@ -567,6 +572,11 @@ export default function CompleteMarketplaceForm() {
         const { styles } = event.data;
         console.log('Received styles from parent:', styles);
 
+        const inheritedTheme = inferThemeFromParentStyles(styles);
+        if (inheritedTheme) {
+          setIsDarkMode(inheritedTheme === 'dark');
+        }
+
         // Apply styles to document root
         if (styles.fontFamily) {
           document.documentElement.style.setProperty('--inherited-font-family', styles.fontFamily);
@@ -640,6 +650,10 @@ export default function CompleteMarketplaceForm() {
     window.addEventListener('message', handleMessage);
     return () => window.removeEventListener('message', handleMessage);
   }, []);
+
+  useEffect(() => {
+    applyThemeMode(isDarkMode ? 'dark' : 'light');
+  }, [isDarkMode]);
 
   // Auto-resize iframe to fit content
   useEffect(() => {

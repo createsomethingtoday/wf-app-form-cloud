@@ -10,6 +10,11 @@ import {
   MAX_MARKETPLACE_APP_CATEGORIES,
 } from '../lib/marketplaceCategories';
 import { withBasePath } from '../lib/runtimePaths';
+import {
+  applyThemeMode,
+  detectClientTheme,
+  inferThemeFromParentStyles
+} from '../lib/themeSupport';
 
 const QuillEditor = dynamic(() => import('../components/QuillEditor'), { ssr: false });
 const DEFAULT_UPDATE_TOGGLES_ENABLED = process.env.NEXT_PUBLIC_UPDATE_TOGGLES_ENABLED === 'true';
@@ -159,18 +164,14 @@ export default function CompleteMarketplaceForm() {
   }, []);
 
   useEffect(() => {
-    // Check for dark mode preference
-    const checkDarkMode = () => {
-      const darkModeMediaQuery = window.matchMedia('(prefers-color-scheme: dark)');
-      setIsDarkMode(darkModeMediaQuery.matches);
+    const syncDarkMode = () => {
+      setIsDarkMode(detectClientTheme(window) === 'dark');
     };
 
-    // Initial check
-    checkDarkMode();
+    syncDarkMode();
 
-    // Listen for changes
     const darkModeMediaQuery = window.matchMedia('(prefers-color-scheme: dark)');
-    const handleChange = (e) => setIsDarkMode(e.matches);
+    const handleChange = () => syncDarkMode();
 
     if (darkModeMediaQuery.addEventListener) {
       darkModeMediaQuery.addEventListener('change', handleChange);
@@ -179,12 +180,16 @@ export default function CompleteMarketplaceForm() {
       darkModeMediaQuery.addListener(handleChange);
     }
 
+    window.addEventListener('storage', handleChange);
+
     return () => {
       if (darkModeMediaQuery.removeEventListener) {
         darkModeMediaQuery.removeEventListener('change', handleChange);
       } else {
         darkModeMediaQuery.removeListener(handleChange);
       }
+
+      window.removeEventListener('storage', handleChange);
     };
   }, []);
 
@@ -1245,6 +1250,11 @@ export default function CompleteMarketplaceForm() {
         const styles = event.data.styles;
         const root = document.documentElement;
 
+        const inheritedTheme = inferThemeFromParentStyles(styles);
+        if (inheritedTheme) {
+          setIsDarkMode(inheritedTheme === 'dark');
+        }
+
         // Set CSS variables that components can use
         if (styles.fontFamily) root.style.setProperty('--webflow-font-family', styles.fontFamily);
         if (styles.fontSize) root.style.setProperty('--webflow-font-size', styles.fontSize);
@@ -1376,11 +1386,7 @@ export default function CompleteMarketplaceForm() {
 
   // Apply dark mode class to body
   useEffect(() => {
-    if (isDarkMode) {
-      document.body.classList.add('dark-mode');
-    } else {
-      document.body.classList.remove('dark-mode');
-    }
+    applyThemeMode(isDarkMode ? 'dark' : 'light');
   }, [isDarkMode]);
 
   // Handle HTML5 validation errors
