@@ -20,6 +20,71 @@ type OpenNextHandler = {
 let openNextHandlerPromise: Promise<OpenNextHandler> | null = null;
 let patchedProcessChdir = false;
 
+function normalizePrefix(value: string | null | undefined) {
+  if (!value || value === "/") {
+    return "";
+  }
+
+  const trimmed = value.trim();
+  if (!trimmed) {
+    return "";
+  }
+
+  try {
+    const parsed = new URL(trimmed, "https://internal.cloudflare");
+    const withoutTrailingSlash = parsed.pathname.replace(/\/+$/, "");
+    if (!withoutTrailingSlash || withoutTrailingSlash === "/") {
+      return "";
+    }
+
+    return withoutTrailingSlash.startsWith("/")
+      ? withoutTrailingSlash
+      : `/${withoutTrailingSlash.replace(/^\/+/, "")}`;
+  } catch {
+    const withoutTrailingSlash = trimmed.replace(/\/+$/, "");
+    if (!withoutTrailingSlash || withoutTrailingSlash === "/") {
+      return "";
+    }
+
+    return withoutTrailingSlash.startsWith("/")
+      ? withoutTrailingSlash
+      : `/${withoutTrailingSlash.replace(/^\/+/, "")}`;
+  }
+}
+
+function getMountPath(env: any) {
+  const candidates = [
+    env?.NEXT_PUBLIC_BASE_URL,
+    env?.BASE_URL,
+    env?.NEXT_PUBLIC_ASSETS_PREFIX,
+    env?.ASSETS_PREFIX,
+    process.env.NEXT_PUBLIC_BASE_URL,
+    process.env.BASE_URL,
+    process.env.NEXT_PUBLIC_ASSETS_PREFIX,
+    process.env.ASSETS_PREFIX
+  ];
+
+  for (const candidate of candidates) {
+    const normalized = normalizePrefix(candidate);
+    if (normalized) {
+      return normalized;
+    }
+  }
+
+  return "";
+}
+
+function withMountPath(path: string, env: any) {
+  const normalizedPath = path.startsWith("/") ? path : `/${path}`;
+  const mountPath = getMountPath(env);
+
+  if (!mountPath || normalizedPath === mountPath || normalizedPath.startsWith(`${mountPath}/`)) {
+    return normalizedPath;
+  }
+
+  return `${mountPath}${normalizedPath}`;
+}
+
 function patchProcessChdir() {
   if (patchedProcessChdir || typeof process === "undefined" || typeof process.chdir !== "function") {
     return;
@@ -274,7 +339,8 @@ async function dispatchScheduledRoute(path: string, env: any, ctx: ExecutionCont
   }
 
   const openNextHandler = await getOpenNextHandler();
-  const response = await openNextHandler.fetch(new Request(`https://internal.cloudflare${path}`, {
+  const mountedPath = withMountPath(path, env);
+  const response = await openNextHandler.fetch(new Request(`https://internal.cloudflare${mountedPath}`, {
     method: "POST",
     headers: {
       Authorization: `Bearer ${env.CRON_SECRET}`
@@ -290,8 +356,9 @@ async function dispatchScheduledRoute(path: string, env: any, ctx: ExecutionCont
 export default {
   async fetch(request: Request, env: any, ctx: ExecutionContext) {
     const url = new URL(request.url);
+    const submitPath = withMountPath("/api/submit-form", env);
 
-    if (url.pathname === "/api/submit-form" && request.method === "POST") {
+    if (url.pathname === submitPath && request.method === "POST") {
       return handleRuntimeSubmit(request, { env });
     }
 

@@ -101,13 +101,15 @@ This project now includes a Webflow Cloud-compatible app shape:
 - `wrangler.json` carries the minimal Wrangler metadata plus the storage bindings Webflow Cloud reads at deploy time
 - `next.config.js` respects `BASE_URL` and `ASSETS_PREFIX` so the app can be mounted inside Webflow product paths
 - `/api/submit-form` runs as an App Router route handler using `Request`, `FormData`, and `File` APIs instead of `formidable`/`fs`
+- `/api/uploads/[...key]` serves uploaded files publicly from the private `FORM_UPLOADS` object storage binding
+- `/api/submissions/import` plus `scripts/backfill-webflow-cloud.mjs` support one-time data migration into D1/R2
 - `scripts/migrations/0001_create_submissions.sql` boots the D1 schema for fresh Webflow Cloud environments
 
 ### Webflow Cloud prerequisites
 
 1. Create a Webflow Cloud project in the Webflow UI and connect it to the GitHub repository that contains this app.
 2. Configure the Webflow Cloud environment path, such as `/app-form`.
-3. Add the app runtime environment variables in the Webflow Cloud UI using `.env.local.example` as the source of truth.
+3. Add the app runtime environment variables in the Webflow Cloud UI using `.env.local.example` as the source of truth. `FORM_UPLOADS_PUBLIC_URL` must point at the deployed app route, for example `https://webflow-app-form.webflow.io/app-form/api/uploads`.
 4. If you want the Update flow to expose the "Load Existing App Data" path in production, set `NEXT_PUBLIC_UPDATE_TOGGLES_ENABLED=true` and `NEXT_PUBLIC_AUTOFILL_UPDATE_ENABLED=true`.
 5. Set either `AUTOFILL_TOKEN_SECRET` or `ADMIN_API_TOKEN` so the app can mint short-lived autofill tokens for Airtable reads.
 6. Use the Webflow CLI to authenticate against the target site if you want to trigger deployments from your terminal:
@@ -133,43 +135,25 @@ webflow cloud deploy
 - `@opennextjs/cloudflare` expects the Node runtime, so do not add `export const runtime = "edge"` to app routes.
 - The Cloudflare/OpenNext code path still exists, but direct standalone Cloudflare deployment now needs its own full worker config outside the Webflow Cloud `wrangler.json`.
 - `BASE_URL` and `ASSETS_PREFIX` are used for in-product mounting; the app defaults to root paths when they are unset.
+- Submission data now expects the `SUBMISSIONS_DB` SQLite binding and the `FORM_UPLOADS` Object Storage binding. The old Postgres/Blob fallback path has been removed.
+- The scheduler runs through `custom-worker.ts`, which dispatches the retry and cleanup endpoints inside the mounted app path.
 
 ## Environment Variables
 
 ### Required Variables
 
 ```bash
-# ===== Database (Vercel Postgres) =====
-DATABASE_URL="postgresql://user:pass@host/db?sslmode=require"
-DATABASE_URL_UNPOOLED="postgresql://user:pass@host/db?sslmode=require"
-POSTGRES_URL="postgresql://user:pass@host/db?sslmode=require"
-POSTGRES_URL_NON_POOLING="postgresql://user:pass@host/db?sslmode=require"
-POSTGRES_URL_NO_SSL="postgresql://user:pass@host/db"
-POSTGRES_PRISMA_URL="postgresql://user:pass@host/db?connect_timeout=15&sslmode=require"
-POSTGRES_HOST="host"
-POSTGRES_HOST_UNPOOLED="host"
-POSTGRES_DATABASE="db"
-POSTGRES_USER="user"
-POSTGRES_PASSWORD="password"
-PGHOST="host"
-PGHOST_UNPOOLED="host"
-PGDATABASE="db"
-PGUSER="user"
-PGPASSWORD="password"
-NEON_PROJECT_ID="project-id"
-
-# ===== Blob Storage (Vercel Blob) =====
-BLOB_READ_WRITE_TOKEN="vercel_blob_rw_..."
-
 # ===== Webhook Configuration =====
 # Shared Airtable webhook URL (configured in .env.local.example)
 WEBHOOK_URL="https://hooks.airtable.com/workflows/v1/genericWebhook/..."
+WEBHOOK_TOKEN="your-webhook-authentication-token"
 
-# ===== Cron Job Security =====
+# ===== Cloud scheduler / admin protection =====
 CRON_SECRET="your-secure-random-string"
+ADMIN_API_TOKEN="your-long-random-admin-token"
 
-# ===== Vercel OIDC (Auto-configured by Vercel) =====
-VERCEL_OIDC_TOKEN="..."
+# ===== Public upload route =====
+FORM_UPLOADS_PUBLIC_URL="https://webflow-app-form.webflow.io/app-form/api/uploads"
 ```
 
 ### Optional Variables
@@ -189,6 +173,20 @@ AUTOFILL_TOKEN_SECRET="your-long-random-secret"
 NEXT_PUBLIC_UPDATE_TOGGLES_ENABLED="true"
 NEXT_PUBLIC_AUTOFILL_UPDATE_ENABLED="true"
 ```
+
+### Backfill script
+
+Once both the source app and the Webflow Cloud target are live, run the one-time migration like this:
+
+```bash
+SOURCE_APP_URL="https://old-app.example.com" \
+SOURCE_ADMIN_API_TOKEN="..." \
+TARGET_APP_URL="https://webflow-app-form.webflow.io/app-form" \
+TARGET_ADMIN_API_TOKEN="..." \
+npm run backfill:webflow-cloud
+```
+
+The import endpoint is idempotent by submission ID, so rerunning the script skips rows already inserted into D1.
 
 ## Database Setup
 

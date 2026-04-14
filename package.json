@@ -7,14 +7,13 @@
     "build": "next build",
     "preview": "opennextjs-cloudflare build && opennextjs-cloudflare preview",
     "deploy": "opennextjs-cloudflare build && opennextjs-cloudflare deploy",
+    "backfill:webflow-cloud": "node ./scripts/backfill-webflow-cloud.mjs",
     "start": "next start",
     "lint": "next lint",
     "cf-typegen": "wrangler types --env-interface CloudflareEnv cloudflare-env.d.ts"
   },
   "dependencies": {
     "@vercel/analytics": "^1.5.0",
-    "@vercel/blob": "^2.0.0",
-    "@vercel/postgres": "^0.10.0",
     "dotenv": "^17.2.3",
     "lucide-react": "^0.563.0",
     "next": "^15.0.0",
