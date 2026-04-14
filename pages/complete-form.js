@@ -19,6 +19,7 @@ import {
 const QuillEditor = dynamic(() => import('../components/QuillEditor'), { ssr: false });
 const DEFAULT_UPDATE_TOGGLES_ENABLED = process.env.NEXT_PUBLIC_UPDATE_TOGGLES_ENABLED === 'true';
 const DEFAULT_AUTOFILL_UPDATE_ENABLED = process.env.NEXT_PUBLIC_AUTOFILL_UPDATE_ENABLED === 'true';
+const ASSET_DASHBOARD_URL = process.env.NEXT_PUBLIC_ASSET_DASHBOARD_URL || '';
 
 function parseScopesField(scopesField) {
   if (Array.isArray(scopesField)) {
@@ -1587,6 +1588,63 @@ export default function CompleteMarketplaceForm() {
             )}
           </div>
         )}
+
+        <div
+          className="form-section"
+          style={{
+            backgroundColor: 'color-mix(in srgb, var(--_color---primary--webflow-blue, #146ef5) 8%, transparent)',
+            border: '1px solid color-mix(in srgb, var(--_color---primary--webflow-blue, #146ef5) 24%, transparent)',
+            borderRadius: '8px',
+            padding: '1rem 1.25rem',
+            marginBottom: '2rem'
+          }}
+        >
+          <div style={{display: 'flex', alignItems: 'flex-start', gap: '0.75rem'}}>
+            <TriangleAlert
+              size={18}
+              style={{
+                color: 'var(--colors--primary-accent, var(--_color---primary--webflow-blue, #146ef5))',
+                flexShrink: 0,
+                marginTop: '2px'
+              }}
+            />
+            <div>
+              <p
+                style={{
+                  margin: '0 0 0.5rem 0',
+                  fontWeight: 600,
+                  color: 'var(--colors--text, var(--_color---neutral--black, #080808))'
+                }}
+              >
+                Draft submissions are available in the Asset Dashboard
+              </p>
+              <p
+                style={{
+                  margin: 0,
+                  lineHeight: 1.5,
+                  color: 'var(--colors--text-secondary, var(--_color---neutral--gray-600, #5a5a5a))'
+                }}
+              >
+                Need more time? Developers can sign in to the Asset Dashboard, create a profile if needed, and save draft submissions before returning here to finalize the form.
+              </p>
+              {ASSET_DASHBOARD_URL && (
+                <p style={{margin: '0.75rem 0 0 0'}}>
+                  <a
+                    href={ASSET_DASHBOARD_URL}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    style={{
+                      color: 'var(--colors--primary-accent, var(--_color---primary--webflow-blue, #146ef5))',
+                      fontWeight: 600
+                    }}
+                  >
+                    Open Asset Dashboard
+                  </a>
+                </p>
+              )}
+            </div>
+          </div>
+        </div>
 
         {/* App Information Section */}
         <div className="form-section">

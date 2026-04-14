@@ -109,7 +109,7 @@ This project now includes a Webflow Cloud-compatible app shape:
 
 1. Create a Webflow Cloud project in the Webflow UI and connect it to the GitHub repository that contains this app.
 2. Configure the Webflow Cloud environment path, such as `/app-form`.
-3. Add the app runtime environment variables in the Webflow Cloud UI using `.env.local.example` as the source of truth. `FORM_UPLOADS_PUBLIC_URL` must point at the deployed app route, for example `https://webflow-app-form.webflow.io/app-form/api/uploads`.
+3. Add the app runtime environment variables in the Webflow Cloud UI using `.env.local.example` as the source of truth. `FORM_UPLOADS_PUBLIC_URL` must point at the deployed app route, for example `https://webflow-app-form.webflow.io/app-form/api/uploads`, not the raw `pub-...r2.dev` bucket URL.
 4. If you want the Update flow to expose the "Load Existing App Data" path in production, set `NEXT_PUBLIC_UPDATE_TOGGLES_ENABLED=true` and `NEXT_PUBLIC_AUTOFILL_UPDATE_ENABLED=true`.
 5. Set either `AUTOFILL_TOKEN_SECRET` or `ADMIN_API_TOKEN` so the app can mint short-lived autofill tokens for Airtable reads.
 6. Use the Webflow CLI to authenticate against the target site if you want to trigger deployments from your terminal:
@@ -154,6 +154,9 @@ ADMIN_API_TOKEN="your-long-random-admin-token"
 
 # ===== Public upload route =====
 FORM_UPLOADS_PUBLIC_URL="https://webflow-app-form.webflow.io/app-form/api/uploads"
+
+# ===== Optional draft dashboard CTA =====
+NEXT_PUBLIC_ASSET_DASHBOARD_URL="https://your-dashboard.example.com/dashboard/drafts/new"
 ```
 
 ### Optional Variables
