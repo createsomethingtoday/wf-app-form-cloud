@@ -214,7 +214,7 @@ export default function CompleteMarketplaceForm() {
 
     // Creator Info
     creatorName: '',
-    creatorWebsite: '',
+    creatorWfAccountEmail: '',
     creatorContactEmail: '',
 
     // App Details
@@ -264,7 +264,7 @@ export default function CompleteMarketplaceForm() {
     requiredFields: new Set([
       'submissionType', 'appName', 'clientId', 'appCapabilities', 'appInstallUrl',
       'appAvatarImage', 'appAvatarAltText', 'paymentType', 'visibility', 'appCategory',
-      'creatorName', 'creatorWebsite', 'creatorContactEmail', 'appPreviewDescription',
+      'creatorName', 'creatorWfAccountEmail', 'creatorContactEmail', 'appPreviewDescription',
       'appDetailDescription', 'appFeaturesOverview', 'appWebsiteUrl', 'appAccessCredentials', 'credentialsTierConfirmation',
       'appDemoVideoUrl', 'appPrivacyPolicyUrl', 'appTermsUrl', 'agreementAccepted'
       // Note: appSupportEmail and appSupportUrl are either/or - handled separately
@@ -554,7 +554,7 @@ export default function CompleteMarketplaceForm() {
         // Categories come as array of strings
         appCategory: fields['ℹ️🪣Categories (Text)'] || [],
         creatorName: fields['🎨Creator Name'] || '',
-        creatorWebsite: fields['👀🎨📧 Creator WF Account Email (Override)'] || '',
+        creatorWfAccountEmail: fields['👀🎨📧 Creator WF Account Email (Override)'] || '',
         creatorContactEmail: fields['🎨📧 Creator Email'] || '',
         appPreviewDescription: fields['ℹ️Description (Short)'] || '',
         appDetailDescription: fields['ℹ️Description (Long).html'] || '',
@@ -2353,16 +2353,16 @@ export default function CompleteMarketplaceForm() {
           />
 
           <FormField
-            id="Creator-Website"
-            name="creatorWebsite"
-            label="Creator website"
-            type="url"
-            value={formData.creatorWebsite}
-            onChange={(value) => handleInputChange('creatorWebsite', value)}
-            required={isFieldRequired('creatorWebsite')}
-            showAsterisk={isFieldRequired('creatorWebsite')}
-            placeholder="https://yourwebsite.com"
-            autoComplete="url"
+            id="Creator-WF-Account-Email"
+            name="creatorWfAccountEmail"
+            label="Webflow account email"
+            type="email"
+            value={formData.creatorWfAccountEmail}
+            onChange={(value) => handleInputChange('creatorWfAccountEmail', value)}
+            required={isFieldRequired('creatorWfAccountEmail')}
+            showAsterisk={isFieldRequired('creatorWfAccountEmail')}
+            placeholder="account@example.com"
+            autoComplete="email"
           />
 
           <FormField

@@ -468,8 +468,17 @@ input[type="file"].w-input {
   color: var(--colors--text-secondary, var(--_color---neutral--gray-600, #5a5a5a)) !important;
 }
 
-/* Dark mode support via explicit class so native form controls stay in sync */
-.dark-mode {
+/* Dark mode support via explicit selectors so manual host theme overrides OS media mode */
+:root[data-theme='dark'],
+.dark-mode,
+.u-mode-dark {
+  --_color---neutral--white: #080808;
+  --_color---neutral--black: #ffffff;
+  --_color---neutral--gray-100: #171717;
+  --_color---neutral--gray-300: #ababab;
+  --_color---neutral--gray-400: #898989;
+  --_color---neutral--gray-600: #5a5a5a;
+  --_color---neutral--gray-900: #f0f0f0;
   --colors--background: var(--_color---neutral--white, #080808);
   --colors--text: var(--_color---neutral--black, #ffffff);
   --colors--text-secondary: var(--_color---neutral--gray-300, #ababab);
@@ -478,13 +487,19 @@ input[type="file"].w-input {
   color-scheme: dark;
 }
 
-.dark-mode .input.cc-select.w-select {
+:root[data-theme='dark'] .input.cc-select.w-select,
+.dark-mode .input.cc-select.w-select,
+.u-mode-dark .input.cc-select.w-select {
   background-image: none !important;
   color-scheme: dark !important;
 }
 
+:root[data-theme='dark'] .input.cc-select.w-select option,
+:root[data-theme='dark'] .input.cc-select.w-select optgroup,
 .dark-mode .input.cc-select.w-select option,
-.dark-mode .input.cc-select.w-select optgroup {
+.dark-mode .input.cc-select.w-select optgroup,
+.u-mode-dark .input.cc-select.w-select option,
+.u-mode-dark .input.cc-select.w-select optgroup {
   color: var(--colors--text, var(--_color---neutral--black, #ffffff));
   background-color: var(--colors--secondary-background, var(--_color---neutral--gray-100, #171717));
 }

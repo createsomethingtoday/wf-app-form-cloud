@@ -76,7 +76,7 @@ export default function Document(props) {
               --_typography---fonts--primary-font: "WF Visual Sans Variable", Arial, sans-serif;
             }
 
-            /* Dark mode variable updates only */
+            /* Respect OS dark mode when no explicit theme has been applied */
             @media (prefers-color-scheme: dark) {
               :root {
                 --_color---neutral--white: #080808;
@@ -88,6 +88,21 @@ export default function Document(props) {
               }
             }
 
+            :root[data-theme="light"],
+            .light-mode,
+            .u-mode-light {
+              --_color---neutral--white: #ffffff;
+              --_color---neutral--black: #080808;
+              --_color---neutral--gray-100: #f0f0f0;
+              --_color---neutral--gray-300: #ababab;
+              --_color---neutral--gray-400: #898989;
+              --_color---neutral--gray-600: #5a5a5a;
+              --_color---neutral--gray-900: #171717;
+              color-scheme: light;
+            }
+
+            :root[data-theme="dark"],
+            .dark-mode,
             .u-mode-dark {
               --_color---neutral--white: #080808;
               --_color---neutral--black: #ffffff;
@@ -95,6 +110,7 @@ export default function Document(props) {
               --_color---neutral--gray-300: #ababab;
               --_color---neutral--gray-600: #5a5a5a;
               --_color---neutral--gray-900: #f0f0f0;
+              color-scheme: dark;
             }
 
             /* Button styling with proper white text - use hardcoded white, not CSS variable */

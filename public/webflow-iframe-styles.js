@@ -4,6 +4,15 @@
  */
 
 (function() {
+  const IFRAME_SELECTORS = [
+    'iframe#marketplace-form-app',
+    'iframe[src*="webflow-form"]',
+    'iframe[src*="webflow-app-form.webflow.io"]',
+    'iframe[src*="/app-form/complete-form"]',
+    'iframe[src*="/app-form/complete-form-with-styles"]',
+    'iframe[src*="/app-form/enhanced-form"]'
+  ];
+
   function normalizeThemePreference(value) {
     if (value === null || value === undefined) {
       return null;
@@ -110,6 +119,14 @@
       }
     }
 
+    const activeModeButton = document.querySelector('[data-mode-button].cc-active-mode');
+    const activeMode = normalizeThemePreference(
+      activeModeButton ? activeModeButton.getAttribute('data-mode-button') : null
+    );
+    if (activeMode && activeMode !== 'auto') {
+      return activeMode;
+    }
+
     const classNames = `${root.className || ''} ${body && body.className ? body.className : ''}`;
     if (/\b(u-mode-dark|dark-mode|theme-dark|is-dark)\b/i.test(classNames)) {
       return 'dark';
@@ -149,6 +166,35 @@
     return window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
   }
 
+  function getManagedIframes(root = document) {
+    const context = root && typeof root.querySelectorAll === 'function' ? root : document;
+    const iframes = new Set();
+
+    IFRAME_SELECTORS.forEach((selector) => {
+      context.querySelectorAll(selector).forEach((iframe) => {
+        iframes.add(iframe);
+      });
+    });
+
+    return Array.from(iframes);
+  }
+
+  function isManagedIframe(node) {
+    if (!node || node.tagName !== 'IFRAME') {
+      return false;
+    }
+
+    const src = typeof node.src === 'string' ? node.src : '';
+    return (
+      node.id === 'marketplace-form-app' ||
+      src.includes('webflow-form') ||
+      src.includes('webflow-app-form.webflow.io') ||
+      src.includes('/app-form/complete-form') ||
+      src.includes('/app-form/complete-form-with-styles') ||
+      src.includes('/app-form/enhanced-form')
+    );
+  }
+
   // Function to get computed styles from the parent page
   function getParentStyles() {
     const computedStyle = window.getComputedStyle(document.documentElement);
@@ -163,6 +209,7 @@
       backgroundColor: bodyStyle.backgroundColor || computedStyle.backgroundColor || '#ffffff',
       lineHeight: bodyStyle.lineHeight || computedStyle.lineHeight || '1.5',
       theme: theme,
+      appearance: theme,
       colorScheme: theme
     };
 
@@ -198,7 +245,7 @@
   }
 
   function broadcastStylesToAllIframes() {
-    const iframes = document.querySelectorAll('iframe[src*="webflow-form"]');
+    const iframes = getManagedIframes();
     iframes.forEach(iframe => {
       sendStylesToIframe(iframe);
     });
@@ -238,7 +285,7 @@
 
   // Auto-detect Webflow form iframes and send styles on load
   function initializeIframeStyles() {
-    const iframes = document.querySelectorAll('iframe[src*="webflow-form"]');
+    const iframes = getManagedIframes();
 
     iframes.forEach(iframe => {
       iframe.addEventListener('load', function() {
@@ -278,7 +325,7 @@
     mutations.forEach(function(mutation) {
       mutation.addedNodes.forEach(function(node) {
         if (node.nodeType === 1) { // Element node
-          if (node.tagName === 'IFRAME' && node.src && node.src.includes('webflow-form')) {
+          if (isManagedIframe(node)) {
             // Remove border immediately
             node.style.border = 'none';
             node.style.outline = 'none';
@@ -291,9 +338,9 @@
             });
           }
           // Also check for iframes added as children
-          const childIframes = node.querySelectorAll && node.querySelectorAll('iframe[src*="webflow-form"]');
-          if (childIframes) {
-            childIframes.forEach(iframe => {
+          const childIframes = node.querySelectorAll ? getManagedIframes(node) : [];
+          if (childIframes.length > 0) {
+            childIframes.forEach((iframe) => {
               // Remove border immediately
               iframe.style.border = 'none';
               iframe.style.outline = 'none';
