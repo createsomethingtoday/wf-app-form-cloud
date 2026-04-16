@@ -1,3 +1,4 @@
+import { getCloudflareContext } from '@opennextjs/cloudflare';
 import { handleRuntimeSubmit } from '../../../lib/submitFormRuntime';
 
 function methodNotAllowed() {
@@ -10,7 +11,12 @@ function methodNotAllowed() {
 }
 
 export async function POST(request) {
-  return handleRuntimeSubmit(request);
+  try {
+    const context = getCloudflareContext();
+    return handleRuntimeSubmit(request, { env: context?.env });
+  } catch {
+    return handleRuntimeSubmit(request);
+  }
 }
 
 export function GET() {
