@@ -85,6 +85,30 @@ function withMountPath(path: string, env: any) {
   return `${mountPath}${normalizedPath}`;
 }
 
+function normalizePathname(pathname: string) {
+  if (!pathname) {
+    return "/";
+  }
+
+  const withoutTrailingSlash = pathname.replace(/\/+$/, "");
+  return withoutTrailingSlash || "/";
+}
+
+function matchesRoutePath(pathname: string, routePath: string, env: any) {
+  const normalizedPathname = normalizePathname(pathname);
+  const normalizedRoutePath = normalizePathname(routePath.startsWith("/") ? routePath : `/${routePath}`);
+  const mountedRoutePath = normalizePathname(withMountPath(normalizedRoutePath, env));
+
+  if (normalizedPathname === mountedRoutePath || normalizedPathname === normalizedRoutePath) {
+    return true;
+  }
+
+  // Webflow Cloud can mount the app under a product path without exposing that
+  // mount path through runtime env vars, so fall back to suffix matching.
+  return normalizedPathname.endsWith(normalizedRoutePath) &&
+    normalizedPathname.charAt(normalizedPathname.length - normalizedRoutePath.length - 1) === "/";
+}
+
 function patchProcessChdir() {
   if (patchedProcessChdir || typeof process === "undefined" || typeof process.chdir !== "function") {
     return;
@@ -356,9 +380,8 @@ async function dispatchScheduledRoute(path: string, env: any, ctx: ExecutionCont
 export default {
   async fetch(request: Request, env: any, ctx: ExecutionContext) {
     const url = new URL(request.url);
-    const submitPath = withMountPath("/api/submit-form", env);
 
-    if (url.pathname === submitPath && request.method === "POST") {
+    if (request.method === "POST" && matchesRoutePath(url.pathname, "/api/submit-form", env)) {
       return handleRuntimeSubmit(request, { env });
     }
 
