@@ -1,7 +1,5 @@
 import { getUploadedObject } from '../../../../lib/blobStore';
 
-export const runtime = 'edge';
-
 function buildObjectResponse(object, includeBody = true) {
   const headers = new Headers();
 
