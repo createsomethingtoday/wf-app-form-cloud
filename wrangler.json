@@ -5,18 +5,5 @@
   "compatibility_date": "2026-03-17",
   "compatibility_flags": [
     "nodejs_compat"
-  ],
-  "d1_databases": [
-    {
-      "binding": "SUBMISSIONS_DB",
-      "database_name": "SUBMISSIONS_DB",
-      "migrations_dir": "./scripts/migrations"
-    }
-  ],
-  "r2_buckets": [
-    {
-      "binding": "FORM_UPLOADS",
-      "bucket_name": "FORM_UPLOADS"
-    }
   ]
 }

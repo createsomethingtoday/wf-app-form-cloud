@@ -3,11 +3,7 @@ import { getUploadedObject } from '../../../../lib/blobStore';
 function buildObjectResponse(object, includeBody = true) {
   const headers = new Headers();
 
-  if (typeof object.writeHttpMetadata === 'function') {
-    object.writeHttpMetadata(headers);
-  }
-
-  if (!headers.has('Content-Type') && object.httpMetadata?.contentType) {
+  if (object.httpMetadata?.contentType) {
     headers.set('Content-Type', object.httpMetadata.contentType);
   }
 

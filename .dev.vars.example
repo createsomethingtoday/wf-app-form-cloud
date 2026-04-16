@@ -7,3 +7,14 @@ AIRTABLE_API_KEY=your-airtable-api-key
 WEBHOOK_URL=https://hooks.airtable.com/workflows/v1/genericWebhook/...
 CRON_SECRET=your-secure-random-string
 FORM_UPLOADS_PUBLIC_URL=https://your-public-r2-base-url.example.com
+
+# Cloudflare D1 (HTTP REST API)
+CF_ACCOUNT_ID=your-cloudflare-account-id
+CF_D1_DATABASE_ID=your-d1-database-uuid
+CF_API_TOKEN=your-cloudflare-api-token
+
+# Cloudflare R2 (S3-compatible API)
+CF_R2_ACCOUNT_ID=your-cloudflare-account-id
+CF_R2_BUCKET=your-r2-bucket-name
+CF_R2_ACCESS_KEY_ID=your-r2-access-key-id
+CF_R2_SECRET_ACCESS_KEY=your-r2-secret-access-key
