@@ -9,15 +9,14 @@
   "d1_databases": [
     {
       "binding": "SUBMISSIONS_DB",
-      "database_name": "wf-bl-app-form-cloud",
-      "database_id": "dff8622b-864e-4475-a4b7-29216881ea9b",
+      "database_name": "SUBMISSIONS_DB",
       "migrations_dir": "./scripts/migrations"
     }
   ],
   "r2_buckets": [
     {
       "binding": "FORM_UPLOADS",
-      "bucket_name": "webflow-app-form-uploads"
+      "bucket_name": "FORM_UPLOADS"
     }
   ]
 }
