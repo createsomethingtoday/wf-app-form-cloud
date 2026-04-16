@@ -135,8 +135,8 @@ webflow cloud deploy
 - `@opennextjs/cloudflare` expects the Node runtime, so do not add `export const runtime = "edge"` to app routes.
 - The Cloudflare/OpenNext code path still exists, but direct standalone Cloudflare deployment now needs its own full worker config outside the Webflow Cloud `wrangler.json`.
 - `BASE_URL` and `ASSETS_PREFIX` are used for in-product mounting; the app defaults to root paths when they are unset.
-- Submission data now expects the `SUBMISSIONS_DB` SQLite binding and the `FORM_UPLOADS` Object Storage binding. The old Postgres/Blob fallback path has been removed.
-- The scheduler runs through `custom-worker.ts`, which dispatches the retry and cleanup endpoints inside the mounted app path.
+- Submission data is stored in the user's own Cloudflare D1 (via REST) and R2 (via S3 API). See `lib/d1Client.js` and `lib/r2Client.js` for the access layer.
+- `/api/cron/retry-failed` and `/api/cron/cleanup-blobs` exist but have no scheduler attached on Webflow Cloud. Either call them externally (e.g. GitHub Actions + `CRON_SECRET`) or deploy a separate Cloudflare scheduled Worker that `fetch`es them.
 
 ## Environment Variables
 
