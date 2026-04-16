@@ -13,8 +13,6 @@ import {
 } from '../lib/themeSupport';
 
 const QuillEditor = dynamic(() => import('../components/QuillEditor'), { ssr: false });
-const ASSET_DASHBOARD_URL = process.env.NEXT_PUBLIC_ASSET_DASHBOARD_URL || '';
-
 export default function CompleteMarketplaceForm() {
   // Dark mode detection
   const [isDarkMode, setIsDarkMode] = useState(false);
@@ -938,51 +936,6 @@ export default function CompleteMarketplaceForm() {
             {formStatus.message}
           </div>
         )}
-
-        <div
-          className="form-section"
-          style={{
-            backgroundColor: 'color-mix(in srgb, var(--_color---primary--webflow-blue, #146ef5) 8%, transparent)',
-            border: '1px solid color-mix(in srgb, var(--_color---primary--webflow-blue, #146ef5) 24%, transparent)',
-            borderRadius: '8px',
-            padding: '1rem 1.25rem',
-            marginBottom: '2rem'
-          }}
-        >
-          <div style={{ display: 'flex', alignItems: 'flex-start', gap: '0.75rem' }}>
-            <TriangleAlert
-              size={18}
-              style={{
-                color: 'var(--colors--primary-accent, var(--_color---primary--webflow-blue, #146ef5))',
-                flexShrink: 0,
-                marginTop: '2px'
-              }}
-            />
-            <div>
-              <p style={{ margin: '0 0 0.5rem 0', fontWeight: 600 }}>
-                Draft submissions are available in the Asset Dashboard
-              </p>
-              <p style={{ margin: 0, lineHeight: 1.5 }}>
-                Need more time? Developers can sign in to the Asset Dashboard, create a profile if needed, and save draft submissions before returning here to finalize the form.
-              </p>
-              {ASSET_DASHBOARD_URL && (
-                <p style={{ margin: '0.75rem 0 0 0' }}>
-                  <a
-                    href={ASSET_DASHBOARD_URL}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    style={{
-                      color: 'var(--colors--primary-accent, var(--_color---primary--webflow-blue, #146ef5))',
-                      fontWeight: 600
-                    }}
-                  >
-                    Open Asset Dashboard
-                  </a>
-                </p>
-              )}
-            </div>
-          </div>
-        </div>
 
         {/* App Info Section */}
         <div className="form-section u-position-relative">

@@ -154,9 +154,6 @@ ADMIN_API_TOKEN="your-long-random-admin-token"
 
 # ===== Public upload route =====
 FORM_UPLOADS_PUBLIC_URL="https://webflow-app-form.webflow.io/app-form/api/uploads"
-
-# ===== Optional draft dashboard CTA =====
-NEXT_PUBLIC_ASSET_DASHBOARD_URL="https://your-dashboard.example.com/dashboard/drafts/new"
 ```
 
 ### Optional Variables
