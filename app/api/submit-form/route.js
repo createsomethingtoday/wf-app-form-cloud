@@ -1,6 +1,8 @@
 import { getCloudflareContext } from '@opennextjs/cloudflare';
 import { handleRuntimeSubmit } from '../../../lib/submitFormRuntime';
 
+export const runtime = 'edge';
+
 function summarizeEnv(env) {
   let envKeyCount = 0;
 
