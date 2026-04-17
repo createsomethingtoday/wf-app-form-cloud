@@ -336,6 +336,24 @@ export default function CompleteMarketplaceForm() {
   const goToNextStep = () => goToStep(Math.min(currentStep + 1, WIZARD_STEP_COUNT - 1));
   const goToPreviousStep = () => goToStep(Math.max(currentStep - 1, 0));
 
+  // Jump to the step containing a given element, then scroll it into view
+  // once React has flipped the step's display state.
+  const navigateToErrorElement = (element) => {
+    if (!element || typeof window === 'undefined') {
+      return;
+    }
+    const stepContainer = element.closest('[data-wizard-step]');
+    if (stepContainer) {
+      const step = Number(stepContainer.dataset.wizardStep);
+      if (!Number.isNaN(step) && step !== currentStep) {
+        setCurrentStep(step);
+      }
+    }
+    window.requestAnimationFrame(() => {
+      element.scrollIntoView({ behavior: 'smooth', block: 'center' });
+    });
+  };
+
   const [formData, setFormData] = useState({
     // App Info
     submissionType: '',
@@ -1102,13 +1120,7 @@ export default function CompleteMarketplaceForm() {
 
       if (!paymentTypeValid || !visibilityValid) {
         // Scroll to first error like original form
-        const firstError = document.querySelector('.validation-error-message[style*="display: block"]');
-        if (firstError) {
-          firstError.scrollIntoView({
-            behavior: 'smooth',
-            block: 'center'
-          });
-        }
+        navigateToErrorElement(document.querySelector('.validation-error-message[style*="display: block"]'));
         const firstInvalidControl = !paymentTypeValid
           ? document.getElementById('Checkbox-Free')
           : document.getElementById('Checkbox-Public');
@@ -1125,14 +1137,7 @@ export default function CompleteMarketplaceForm() {
         clientIdError: 'Please verify your Client ID before submitting.'
       }));
 
-      // Scroll to Client ID field
-      const clientIdField = document.getElementById('client-id');
-      if (clientIdField) {
-        clientIdField.scrollIntoView({
-          behavior: 'smooth',
-          block: 'center'
-        });
-      }
+      navigateToErrorElement(document.getElementById('client-id'));
       setIsSubmitting(false);
       return;
     }
@@ -1148,14 +1153,7 @@ export default function CompleteMarketplaceForm() {
           supportError: 'Please provide either a Support Email OR Support URL.'
         }));
 
-        // Scroll to support section
-        const supportSection = document.getElementById('App-Support-Email');
-        if (supportSection) {
-          supportSection.scrollIntoView({
-            behavior: 'smooth',
-            block: 'center'
-          });
-        }
+        navigateToErrorElement(document.getElementById('App-Support-Email'));
         setIsSubmitting(false);
         return;
       }
@@ -1166,14 +1164,7 @@ export default function CompleteMarketplaceForm() {
           supportError: 'Please provide EITHER a Support Email OR Support URL, not both.'
         }));
 
-        // Scroll to support section
-        const supportSection = document.getElementById('App-Support-Email');
-        if (supportSection) {
-          supportSection.scrollIntoView({
-            behavior: 'smooth',
-            block: 'center'
-          });
-        }
+        navigateToErrorElement(document.getElementById('App-Support-Email'));
         setIsSubmitting(false);
         return;
       }
@@ -1186,14 +1177,7 @@ export default function CompleteMarketplaceForm() {
         avatarFileError: 'App icon is required. Please upload a 900px by 900px image.'
       }));
 
-      // Scroll to avatar section
-      const avatarSection = document.getElementById('App-Avatar-Image-2');
-      if (avatarSection) {
-        avatarSection.scrollIntoView({
-          behavior: 'smooth',
-          block: 'center'
-        });
-      }
+      navigateToErrorElement(document.getElementById('App-Avatar-Image-2'));
       setIsSubmitting(false);
       return;
     }
@@ -1206,14 +1190,7 @@ export default function CompleteMarketplaceForm() {
         featuresError: 'Please provide at least one app feature.'
       }));
 
-      // Scroll to features section
-      const featuresSection = document.getElementById('Feature-1');
-      if (featuresSection) {
-        featuresSection.scrollIntoView({
-          behavior: 'smooth',
-          block: 'center'
-        });
-      }
+      navigateToErrorElement(document.getElementById('Feature-1'));
       setIsSubmitting(false);
       return;
     }
@@ -1282,14 +1259,7 @@ export default function CompleteMarketplaceForm() {
         screenshotsCountError: `We recommend uploading at least 4 screenshots to show key workflows. You currently have ${screenshotCount} screenshot(s).`
       }));
 
-      // Scroll to screenshots section
-      const screenshotsSection = document.querySelector('[id*="Screenshot"]');
-      if (screenshotsSection) {
-        screenshotsSection.scrollIntoView({
-          behavior: 'smooth',
-          block: 'center'
-        });
-      }
+      navigateToErrorElement(document.querySelector('[id*="Screenshot"]'));
       setIsSubmitting(false);
       return;
     }
