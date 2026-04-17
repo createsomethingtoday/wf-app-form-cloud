@@ -8,6 +8,7 @@
     "preview": "opennextjs-cloudflare build && opennextjs-cloudflare preview",
     "deploy": "opennextjs-cloudflare build && opennextjs-cloudflare deploy",
     "backfill:webflow-cloud": "node ./scripts/backfill-webflow-cloud.mjs",
+    "test:r2": "node ./scripts/test-r2.mjs",
     "start": "next start",
     "lint": "next lint",
     "test": "vitest run",
