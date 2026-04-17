@@ -24,7 +24,15 @@ byte; in practice timing signal is drowned out by network variance and V8's
 non-deterministic string comparison. Still a best-practice violation.
 
 Both endpoints now use `constantTimeEqual`, matching how `apiAuth.js` already
-gated the `ADMIN_API_TOKEN` routes. Handled in the same commit as this report.
+gated the `ADMIN_API_TOKEN` routes.
+
+**F-2 — Full client ID written to log line.** *(Severity: very low.)*
+
+`pages/api/airtable/get-app.js` previously logged `{ recordCount, clientId }`
+on every lookup, which meant whole client IDs ended up in any log-aggregation
+pipeline the platform has configured. Now truncates to the first 8 chars as
+`clientIdPrefix`, which is still enough to correlate log lines for debugging
+without fanning the full identifier out to observability systems.
 
 ### Still open — watch-list
 
@@ -53,11 +61,9 @@ treated as semi-secret, consider: (a) requiring a human-auth step before
 issuing the token, (b) adding a per-IP throttle on verify, (c) narrowing
 the returned fields further (e.g. omit credential-ish notes).
 
-**W-3 — Log lines occasionally include client IDs.** `pages/api/airtable/get-app.js`
-logs `{ clientId }` on every successful lookup. Client IDs aren't highly
-sensitive on their own, but once logs fan out (Sentry, CF Logpush, etc.) it
-becomes harder to revoke them from observability tools. Consider truncating
-(`clientId.slice(0,8)`) or hashing for log lines.
+**W-3 — Log lines occasionally include client IDs.** Fixed in F-2. Still
+worth a general look whenever new `console.log` lines get added: prefer
+hashing or truncating identifiers rather than logging them raw.
 
 **W-4 — No CSRF or Origin check on POST endpoints.** `/api/submit-form`,
 `/api/verify-client-id`, and `/api/submissions/*` all accept cross-origin
@@ -85,12 +91,14 @@ can both call admin endpoints AND forge autofill tokens. Recommended: set a
 dedicated `AUTOFILL_TOKEN_SECRET` env var in Webflow Cloud and remove the
 admin-token fallback.
 
-**W-6 — No Content-Security-Policy on the rendered form.** `vercel.json`
-declares one but it isn't applied (app is on Webflow Cloud, not Vercel).
-Webflow Cloud doesn't read that file. If we care about CSP on the form
-page (we probably do given it accepts user-uploaded images), we need to
-set headers via Webflow Cloud's platform settings or add them in
-`_document.js` / `next.config.js`.
+**W-6 — withdrawn.** Initial pass flagged CSP as missing because `vercel.json`
+isn't read on this platform. CSP is in fact applied — `next.config.js`
+declares a `headers()` function with `frame-ancestors *` (deliberately
+permissive so the iframe embed on developers.webflow.com works) plus
+`default-src 'self' 'unsafe-inline' 'unsafe-eval' https: data: blob:;`.
+OpenNext Cloudflare honors Next.js `headers()`, so the policy reaches the
+edge. If we later want a stricter CSP (dropping `unsafe-eval` in particular),
+that would require auditing Quill and any other third-party script.
 
 ## Things that looked good
 
@@ -116,12 +124,13 @@ set headers via Webflow Cloud's platform settings or add them in
 
 1. **Set `AUTOFILL_TOKEN_SECRET`** as a distinct env var in Webflow Cloud
    and remove the `ADMIN_API_TOKEN` fallback in `lib/autofillToken.js`.
-   (5 min.)
+   Two steps because the fallback can't be removed before the env var
+   exists — otherwise existing sessions break. (5 min + one deploy.)
 2. **Add basic rate limiting** on `/api/verify-client-id` and `/api/submit-form`.
    Cloudflare Rules on the hostname would be the cheapest path. (30 min via
    Cloudflare dashboard, no code change.)
-3. **Truncate client IDs in log lines** to the first 8 chars. (10 min.)
-4. **Sort out CSP** — if this matters, set headers via `next.config.js`
-   `headers()` option, which OpenNext applies at the edge. (30 min.)
+3. **Revisit W-2** — whether `/api/verify-client-id` returning existence
+   booleans to anonymous callers is acceptable, and whether the autofill
+   token should gate on anything besides knowing the client ID.
 
 None of these block shipping what's already in production.

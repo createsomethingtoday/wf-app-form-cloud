@@ -137,7 +137,7 @@ export default async function handler(req, res) {
 
     console.log('Airtable query result:', {
       recordCount: data.records?.length || 0,
-      clientId
+      clientIdPrefix: typeof clientId === 'string' ? clientId.slice(0, 8) : ''
     });
 
     if (!data.records || data.records.length === 0) {
