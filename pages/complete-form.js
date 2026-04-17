@@ -218,6 +218,7 @@ export default function CompleteMarketplaceForm() {
   const [currentStep, setCurrentStep] = useState(0);
   const [viewMode, setViewMode] = useState('wizard');
   const [stepGateMissing, setStepGateMissing] = useState(null);
+  const [supportContactType, setSupportContactType] = useState('email');
 
   // Restore saved view mode preference on mount
   useEffect(() => {
@@ -865,6 +866,13 @@ export default function CompleteMarketplaceForm() {
         ...loadedData
       }));
 
+      // Derive support contact type from whichever field came in populated
+      if (loadedData.appSupportUrl && !loadedData.appSupportEmail) {
+        setSupportContactType('url');
+      } else if (loadedData.appSupportEmail) {
+        setSupportContactType('email');
+      }
+
       // Extract image URLs from Airtable
       const thumbnailImages = fields['🖼️Thumbnail Image'];
       const carouselImages = fields['🖼️Carousel Images'];
@@ -1183,29 +1191,22 @@ export default function CompleteMarketplaceForm() {
       return;
     }
 
-    // Validate Support Email/URL - exactly one is required (either/or, not both)
+    // Validate Support contact — the selected type (email or URL) must be filled in.
     if (formData.submissionType !== 'Update') {
-      const hasEmail = formData.appSupportEmail && formData.appSupportEmail.trim() !== '';
-      const hasUrl = formData.appSupportUrl && formData.appSupportUrl.trim() !== '';
+      const activeValue = supportContactType === 'email'
+        ? formData.appSupportEmail
+        : formData.appSupportUrl;
+      const activeFieldId = supportContactType === 'email' ? 'App-Support-Email' : 'Support-URL';
 
-      if (!hasEmail && !hasUrl) {
+      if (!activeValue || !activeValue.trim()) {
         setValidationState(prev => ({
           ...prev,
-          supportError: 'Please provide either a Support Email OR Support URL.'
+          supportError: supportContactType === 'email'
+            ? 'Please provide a support email.'
+            : 'Please provide a support website URL.',
         }));
 
-        navigateToErrorElement(document.getElementById('App-Support-Email'));
-        setIsSubmitting(false);
-        return;
-      }
-
-      if (hasEmail && hasUrl) {
-        setValidationState(prev => ({
-          ...prev,
-          supportError: 'Please provide EITHER a Support Email OR Support URL, not both.'
-        }));
-
-        navigateToErrorElement(document.getElementById('App-Support-Email'));
+        navigateToErrorElement(document.getElementById(activeFieldId));
         setIsSubmitting(false);
         return;
       }
@@ -3179,82 +3180,122 @@ N/A`}
             description="Add the website URL where users can access your Privacy Policy"
           />
 
-          {formData.submissionType !== 'Update' && (
-            <div style={{
-              backgroundColor: 'color-mix(in srgb, var(--_color---primary--webflow-blue, #146ef5) 10%, transparent)',
-              border: '1px solid color-mix(in srgb, var(--_color---primary--webflow-blue, #146ef5) 30%, transparent)',
-              borderRadius: '4px',
-              padding: '0.75rem',
-              marginBottom: '1rem',
-              display: 'flex',
-              alignItems: 'center',
-              gap: '0.5rem'
-            }}>
-              <span style={{fontSize: '1rem', color: 'var(--colors--primary-accent, var(--_color---primary--webflow-blue, #146ef5))'}}>i</span>
-              <span style={{fontSize: '0.875rem', color: 'var(--colors--primary-accent, var(--_color---primary--webflow-blue, #146ef5))'}}>
-                <strong>Either/Or Required:</strong> Provide EITHER a Support Email OR Support URL
-              </span>
+          <div className="input-group">
+            <label className="input-label" style={{ display: 'block', marginBottom: '0.5rem' }}>
+              How can users reach support?
+              {formData.submissionType !== 'Update' && <span className="dyn-asterisk">*</span>}
+            </label>
+            <div
+              role="radiogroup"
+              aria-label="Support contact type"
+              style={{
+                display: 'inline-flex',
+                border: '1px solid var(--_color---neutral--gray-300, #d0d0d0)',
+                borderRadius: '6px',
+                overflow: 'hidden',
+                marginBottom: '1rem',
+              }}
+            >
+              {[
+                { value: 'email', label: 'Email' },
+                { value: 'url', label: 'Website' },
+              ].map((option) => {
+                const selected = supportContactType === option.value;
+                return (
+                  <button
+                    key={option.value}
+                    type="button"
+                    role="radio"
+                    aria-checked={selected}
+                    onClick={() => {
+                      if (supportContactType === option.value) {
+                        return;
+                      }
+                      setSupportContactType(option.value);
+                      setFormData((prev) => ({
+                        ...prev,
+                        appSupportEmail: option.value === 'email' ? prev.appSupportEmail : '',
+                        appSupportUrl: option.value === 'url' ? prev.appSupportUrl : '',
+                      }));
+                      setValidationState((prev) => ({ ...prev, supportError: '' }));
+                    }}
+                    style={{
+                      padding: '0.5rem 1.25rem',
+                      background: selected
+                        ? 'var(--colors--primary-accent, var(--_color---primary--webflow-blue, #146ef5))'
+                        : 'transparent',
+                      color: selected ? '#fff' : 'inherit',
+                      border: 'none',
+                      cursor: 'pointer',
+                      fontWeight: 600,
+                      fontSize: '0.875rem',
+                      transition: 'background 120ms ease, color 120ms ease',
+                    }}
+                  >
+                    {option.label}
+                  </button>
+                );
+              })}
             </div>
+          </div>
+
+          {supportContactType === 'email' ? (
+            <FormField
+              id="App-Support-Email"
+              name="appSupportEmail"
+              label="Support email"
+              type="email"
+              value={formData.appSupportEmail}
+              onChange={(value) => {
+                handleInputChange('appSupportEmail', value);
+                if (value && value.trim()) {
+                  setValidationState((prev) => ({ ...prev, supportError: '' }));
+                }
+              }}
+              required={formData.submissionType !== 'Update'}
+              showAsterisk={formData.submissionType !== 'Update'}
+              placeholder="support@yourapp.com"
+              description="Email address where users can contact your customer support"
+              autoComplete="email"
+            />
+          ) : (
+            <FormField
+              id="Support-URL"
+              name="appSupportUrl"
+              label="Support website"
+              type="url"
+              value={formData.appSupportUrl}
+              onChange={(value) => {
+                handleInputChange('appSupportUrl', value);
+                if (value && value.trim()) {
+                  setValidationState((prev) => ({ ...prev, supportError: '' }));
+                }
+              }}
+              required={formData.submissionType !== 'Update'}
+              showAsterisk={formData.submissionType !== 'Update'}
+              placeholder="https://yourapp.com/support"
+              description="Website URL where users can get help"
+              autoComplete="url"
+            />
           )}
 
-          <FormField
-            id="App-Support-Email"
-            name="appSupportEmail"
-            label="Support Email"
-            type="email"
-            value={formData.appSupportEmail}
-            onChange={(value) => {
-              handleInputChange('appSupportEmail', value);
-              // Clear support error only if exactly one field has a value
-              const hasEmail = value && value.trim() !== '';
-              const hasUrl = formData.appSupportUrl && formData.appSupportUrl.trim() !== '';
-              // Clear error if exactly one is filled (XOR logic)
-              if ((hasEmail && !hasUrl) || (!hasEmail && hasUrl)) {
-                setValidationState(prev => ({ ...prev, supportError: '' }));
-              }
-            }}
-            required={false}
-            showAsterisk={false}
-            placeholder="support@yourapp.com"
-            description="Add an email where users can contact your customer support"
-            autoComplete="email"
-          />
-
-          <FormField
-            id="Support-URL"
-            name="appSupportUrl"
-            label="Support URL"
-            type="url"
-            value={formData.appSupportUrl}
-            onChange={(value) => {
-              handleInputChange('appSupportUrl', value);
-              // Clear support error only if exactly one field has a value
-              const hasUrl = value && value.trim() !== '';
-              const hasEmail = formData.appSupportEmail && formData.appSupportEmail.trim() !== '';
-              // Clear error if exactly one is filled (XOR logic)
-              if ((hasUrl && !hasEmail) || (!hasUrl && hasEmail)) {
-                setValidationState(prev => ({ ...prev, supportError: '' }));
-              }
-            }}
-            required={false}
-            showAsterisk={false}
-            placeholder="https://yourapp.com/support"
-            description="Add a website URL where users can contact your customer support"
-            autoComplete="url"
-          />
-
-          {/* Support Error */}
           {validationState.supportError && (
-            <div className="cc-error_text" style={{
-              display: 'block',
-              backgroundColor: '#FEE2E2',
-              border: '1px solid #EF4444',
-              borderRadius: '4px',
-              padding: '0.75rem',
-              marginTop: '0.5rem',
-              marginBottom: '1rem'
-            }}>
-              <TriangleAlert size={16} style={{ flexShrink: 0, marginRight: '0.5rem', display: 'inline' }} />
+            <div
+              className="cc-error_text"
+              style={{
+                display: 'block',
+                backgroundColor: '#FEE2E2',
+                border: '1px solid #EF4444',
+                borderRadius: '4px',
+                padding: '0.75rem',
+                marginTop: '0.5rem',
+                marginBottom: '1rem',
+              }}
+            >
+              <TriangleAlert
+                size={16}
+                style={{ flexShrink: 0, marginRight: '0.5rem', display: 'inline' }}
+              />
               {validationState.supportError}
             </div>
           )}
