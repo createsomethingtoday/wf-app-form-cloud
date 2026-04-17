@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from 'react';
 import dynamic from 'next/dynamic';
 import { track } from '@vercel/analytics';
 import { TriangleAlert } from 'lucide-react';
+import FeaturesList from '../components/FeaturesList';
 import FormField from '../components/FormField';
 import TextAreaField from '../components/TextAreaField';
 import CheckboxGroup from '../components/CheckboxGroup';
@@ -223,7 +224,7 @@ export default function CompleteMarketplaceForm() {
     appVideoUrl: '',
     appChangelogUrl: '',
     appPrivacyPolicyUrl: '',
-    appFeaturesOverview: ['', '', '', '', ''], // Array of 5 features
+    appFeaturesOverview: [],
     appWebsiteUrl: '',
     appDeveloperNotes: '',
 
@@ -2692,26 +2693,14 @@ export default function CompleteMarketplaceForm() {
                 <p><span>List up to five highlighted app features (at least one required)</span></p>
               </div>
             </div>
-            {[1, 2, 3, 4, 5].map((featureNum) => (
-              <div key={featureNum} style={{ marginBottom: '1rem' }}>
-                <FormField
-                  id={`Feature-${featureNum}`}
-                  name={`Feature-${featureNum}`}
-                  label={`Feature ${featureNum}`}
-                  type="text"
-                  value={formData.appFeaturesOverview[featureNum - 1]}
-                  onChange={(value) => {
-                    const newFeatures = [...formData.appFeaturesOverview];
-                    newFeatures[featureNum - 1] = value;
-                    handleInputChange('appFeaturesOverview', newFeatures);
-                  }}
-                  required={featureNum === 1 && isFieldRequired('appFeaturesOverview')}
-                  showAsterisk={featureNum === 1 && isFieldRequired('appFeaturesOverview')}
-                  maxLength={200}
-                  placeholder={`Enter feature ${featureNum}`}
-                />
-              </div>
-            ))}
+            <FeaturesList
+              features={formData.appFeaturesOverview}
+              onChange={(next) => handleInputChange('appFeaturesOverview', next)}
+              maxFeatures={5}
+              maxLength={200}
+              inputId="Feature-1"
+            />
+
 
             {/* Features Error */}
             {validationState.featuresError && (
