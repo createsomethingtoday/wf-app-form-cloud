@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
 import dynamic from 'next/dynamic';
 import { track } from '@vercel/analytics';
-import { TriangleAlert } from 'lucide-react';
+import { RotateCcw, TriangleAlert, X } from 'lucide-react';
 import FeaturesList from '../components/FeaturesList';
 import FormField from '../components/FormField';
 import TextAreaField from '../components/TextAreaField';
@@ -18,6 +18,48 @@ import {
 } from '../lib/themeSupport';
 
 const QuillEditor = dynamic(() => import('../components/QuillEditor'), { ssr: false });
+
+const DRAFT_STORAGE_KEY = 'wf-app-form-draft';
+const DRAFT_MAX_AGE_MS = 24 * 60 * 60 * 1000;
+const DRAFT_DEBOUNCE_MS = 1000;
+const DRAFT_EXCLUDED_FIELDS = ['appAvatarImage', 'appScreenshots'];
+
+function serializableFormData(formData) {
+  const copy = { ...formData };
+  for (const field of DRAFT_EXCLUDED_FIELDS) {
+    delete copy[field];
+  }
+  return copy;
+}
+
+function hasMeaningfulFormValue(value) {
+  if (typeof value === 'string') {
+    return value.trim().length > 0;
+  }
+  if (Array.isArray(value)) {
+    return value.some((entry) => hasMeaningfulFormValue(entry));
+  }
+  if (typeof value === 'boolean') {
+    return value;
+  }
+  if (value && typeof value === 'object') {
+    return Object.values(value).some((entry) => hasMeaningfulFormValue(entry));
+  }
+  return false;
+}
+
+function formatDraftAge(savedAt) {
+  const ageMs = Date.now() - savedAt;
+  const minutes = Math.round(ageMs / 60000);
+  if (minutes < 1) {
+    return 'just now';
+  }
+  if (minutes < 60) {
+    return `${minutes} minute${minutes === 1 ? '' : 's'} ago`;
+  }
+  const hours = Math.round(minutes / 60);
+  return `${hours} hour${hours === 1 ? '' : 's'} ago`;
+}
 const DEFAULT_UPDATE_TOGGLES_ENABLED = process.env.NEXT_PUBLIC_UPDATE_TOGGLES_ENABLED === 'true';
 const DEFAULT_AUTOFILL_UPDATE_ENABLED = process.env.NEXT_PUBLIC_AUTOFILL_UPDATE_ENABLED === 'true';
 function parseScopesField(scopesField) {
@@ -196,6 +238,7 @@ export default function CompleteMarketplaceForm() {
   const [submissionSuccess, setSubmissionSuccess] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [formStatus, setFormStatus] = useState({ type: '', message: '' });
+  const [draftBanner, setDraftBanner] = useState(null);
 
   const [formData, setFormData] = useState({
     // App Info
@@ -279,6 +322,80 @@ export default function CompleteMarketplaceForm() {
   useEffect(() => {
     screenshotFileRefs.current = Array(5).fill(null).map(() => ({ current: null }));
   }, []);
+
+  // On mount: surface a saved draft if one exists and is recent
+  useEffect(() => {
+    if (typeof window === 'undefined') {
+      return;
+    }
+    try {
+      const raw = window.localStorage.getItem(DRAFT_STORAGE_KEY);
+      if (!raw) {
+        return;
+      }
+      const parsed = JSON.parse(raw);
+      if (!parsed || typeof parsed.savedAt !== 'number' || !parsed.data) {
+        window.localStorage.removeItem(DRAFT_STORAGE_KEY);
+        return;
+      }
+      if (Date.now() - parsed.savedAt > DRAFT_MAX_AGE_MS) {
+        window.localStorage.removeItem(DRAFT_STORAGE_KEY);
+        return;
+      }
+      if (!hasMeaningfulFormValue(parsed.data)) {
+        window.localStorage.removeItem(DRAFT_STORAGE_KEY);
+        return;
+      }
+      setDraftBanner(parsed);
+    } catch {
+      try {
+        window.localStorage.removeItem(DRAFT_STORAGE_KEY);
+      } catch {
+        // ignore
+      }
+    }
+  }, []);
+
+  // Persist the form to localStorage (debounced) so a tab close doesn't wipe progress
+  useEffect(() => {
+    if (typeof window === 'undefined' || submissionSuccess) {
+      return undefined;
+    }
+    const timer = setTimeout(() => {
+      const data = serializableFormData(formData);
+      if (!hasMeaningfulFormValue(data)) {
+        return;
+      }
+      try {
+        window.localStorage.setItem(
+          DRAFT_STORAGE_KEY,
+          JSON.stringify({ data, savedAt: Date.now() })
+        );
+      } catch {
+        // Storage full / disabled — silently skip
+      }
+    }, DRAFT_DEBOUNCE_MS);
+    return () => clearTimeout(timer);
+  }, [formData, submissionSuccess]);
+
+  const resumeDraft = () => {
+    if (!draftBanner?.data) {
+      return;
+    }
+    setFormData((prev) => ({ ...prev, ...draftBanner.data }));
+    setDraftBanner(null);
+  };
+
+  const discardDraft = () => {
+    if (typeof window !== 'undefined') {
+      try {
+        window.localStorage.removeItem(DRAFT_STORAGE_KEY);
+      } catch {
+        // ignore
+      }
+    }
+    setDraftBanner(null);
+  };
 
   // Handle form field changes
   const handleInputChange = (name, value) => {
@@ -1170,6 +1287,13 @@ export default function CompleteMarketplaceForm() {
 
         // Show success state
         setSubmissionSuccess(true);
+        if (typeof window !== 'undefined') {
+          try {
+            window.localStorage.removeItem(DRAFT_STORAGE_KEY);
+          } catch {
+            // ignore
+          }
+        }
 
         // Try multiple scroll methods for iframe context
         try {
@@ -1546,6 +1670,72 @@ export default function CompleteMarketplaceForm() {
           onSubmit={handleSubmit}
           style={{display: submissionSuccess ? 'none' : 'block'}}
         >
+
+        {draftBanner && (
+          <div
+            role="region"
+            aria-label="Saved draft"
+            style={{
+              display: 'flex',
+              alignItems: 'center',
+              gap: '0.75rem',
+              padding: '0.875rem 1rem',
+              marginBottom: '1.5rem',
+              border: '1px solid color-mix(in srgb, var(--_color---primary--webflow-blue, #146ef5) 24%, transparent)',
+              background: 'color-mix(in srgb, var(--_color---primary--webflow-blue, #146ef5) 8%, transparent)',
+              borderRadius: '8px',
+            }}
+          >
+            <RotateCcw size={18} aria-hidden="true" />
+            <div style={{ flex: 1 }}>
+              <div style={{ fontWeight: 600 }}>
+                You have a saved draft from {formatDraftAge(draftBanner.savedAt)}
+              </div>
+              <div
+                style={{
+                  fontSize: '0.875rem',
+                  color: 'var(--colors--text-secondary, var(--_color---neutral--gray-600, #5a5a5a))',
+                }}
+              >
+                Files will need to be re-uploaded. Resume to restore the rest.
+              </div>
+            </div>
+            <button
+              type="button"
+              onClick={resumeDraft}
+              style={{
+                padding: '0.5rem 0.875rem',
+                background: 'var(--colors--primary-accent, var(--_color---primary--webflow-blue, #146ef5))',
+                color: '#fff',
+                border: 'none',
+                borderRadius: '6px',
+                fontWeight: 600,
+                cursor: 'pointer',
+              }}
+            >
+              Resume draft
+            </button>
+            <button
+              type="button"
+              onClick={discardDraft}
+              aria-label="Discard saved draft"
+              style={{
+                display: 'inline-flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                width: '2rem',
+                height: '2rem',
+                border: 'none',
+                background: 'transparent',
+                borderRadius: '4px',
+                cursor: 'pointer',
+                color: 'var(--colors--text-secondary, var(--_color---neutral--gray-600, #5a5a5a))',
+              }}
+            >
+              <X size={18} />
+            </button>
+          </div>
+        )}
 
         {/* General Form Errors */}
         {(formStatus.message || validationState.fileSizeError || validationState.submissionError) && (
