@@ -1761,6 +1761,7 @@ export default function CompleteMarketplaceForm() {
           style={{display: submissionSuccess ? 'none' : 'block'}}
         >
 
+        <style>{`[data-wizard-step] { scroll-margin-top: 120px; }`}</style>
         {viewMode === 'wizard' && (
           <style>{`[data-wizard-step]:not([data-wizard-step="${currentStep}"]) { display: none !important; }`}</style>
         )}
@@ -3301,7 +3302,32 @@ N/A`}
           <ReviewSummary
             sections={REVIEW_SECTIONS}
             formData={formData}
-            onEdit={(sectionIndex) => goToStep(sectionIndex)}
+            onEdit={(sectionIndex) => {
+              const section = FORM_SECTIONS[sectionIndex];
+              if (!section) {
+                return;
+              }
+              if (viewMode === 'wizard') {
+                goToStep(sectionIndex);
+                return;
+              }
+              if (typeof document !== 'undefined') {
+                const el = document.getElementById(section.id);
+                if (el) {
+                  el.scrollIntoView({ behavior: 'smooth', block: 'start' });
+                }
+              }
+              if (typeof window !== 'undefined' && window.parent !== window) {
+                try {
+                  window.parent.postMessage(
+                    { type: 'SCROLL_TO_FORM', source: 'webflow-form-app' },
+                    '*'
+                  );
+                } catch {
+                  // ignore cross-origin errors
+                }
+              }
+            }}
           />
         </div>
 
