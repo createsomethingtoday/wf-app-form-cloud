@@ -313,6 +313,28 @@ export default function CompleteMarketplaceForm() {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [formStatus, setFormStatus] = useState({ type: '', message: '' });
   const [draftBanner, setDraftBanner] = useState(null);
+  const [currentStep, setCurrentStep] = useState(0);
+
+  const WIZARD_STEP_COUNT = FORM_SECTIONS.length;
+
+  const goToStep = (target) => {
+    let next;
+    if (typeof target === 'number') {
+      next = target;
+    } else {
+      next = FORM_SECTIONS.findIndex((section) => section.id === target);
+    }
+    if (next < 0 || next >= WIZARD_STEP_COUNT) {
+      return;
+    }
+    setCurrentStep(next);
+    if (typeof window !== 'undefined') {
+      window.scrollTo({ top: 0, behavior: 'smooth' });
+    }
+  };
+
+  const goToNextStep = () => goToStep(Math.min(currentStep + 1, WIZARD_STEP_COUNT - 1));
+  const goToPreviousStep = () => goToStep(Math.max(currentStep - 1, 0));
 
   const [formData, setFormData] = useState({
     // App Info
@@ -443,20 +465,27 @@ export default function CompleteMarketplaceForm() {
       try {
         window.localStorage.setItem(
           DRAFT_STORAGE_KEY,
-          JSON.stringify({ data, savedAt: Date.now() })
+          JSON.stringify({ data, savedAt: Date.now(), step: currentStep })
         );
       } catch {
         // Storage full / disabled — silently skip
       }
     }, DRAFT_DEBOUNCE_MS);
     return () => clearTimeout(timer);
-  }, [formData, submissionSuccess]);
+  }, [formData, currentStep, submissionSuccess]);
 
   const resumeDraft = () => {
     if (!draftBanner?.data) {
       return;
     }
     setFormData((prev) => ({ ...prev, ...draftBanner.data }));
+    if (
+      typeof draftBanner.step === 'number'
+      && draftBanner.step >= 0
+      && draftBanner.step < WIZARD_STEP_COUNT
+    ) {
+      setCurrentStep(draftBanner.step);
+    }
     setDraftBanner(null);
   };
 
@@ -1745,6 +1774,8 @@ export default function CompleteMarketplaceForm() {
           style={{display: submissionSuccess ? 'none' : 'block'}}
         >
 
+        <style>{`[data-wizard-step]:not([data-wizard-step="${currentStep}"]) { display: none !important; }`}</style>
+
         {draftBanner && (
           <div
             role="region"
@@ -1844,7 +1875,15 @@ export default function CompleteMarketplaceForm() {
             );
           }, 0);
           const progress = totalRequired === 0 ? 100 : (totalFilled / totalRequired) * 100;
-          return <FormProgressRail sections={sectionsWithStatus} progress={progress} />;
+          const activeSectionId = FORM_SECTIONS[currentStep]?.id;
+          return (
+            <FormProgressRail
+              sections={sectionsWithStatus}
+              progress={progress}
+              activeId={activeSectionId}
+              onSectionClick={(id) => goToStep(id)}
+            />
+          );
         })()}
 
         {/* General Form Errors */}
@@ -1889,7 +1928,7 @@ export default function CompleteMarketplaceForm() {
         )}
 
         {/* App Information Section */}
-        <div id="app-info" className="form-section">
+        <div id="app-info" data-wizard-step="0" className="form-section">
           <div className="heading-component">
             <h2 className="h5">App info</h2>
           </div>
@@ -2568,7 +2607,7 @@ export default function CompleteMarketplaceForm() {
         </div>
 
         {/* Creator Information Section */}
-        <div id="creator-info" className="form-section">
+        <div id="creator-info" data-wizard-step="1" className="form-section">
           <div className="heading-component">
             <h2 className="h5">Creator info</h2>
           </div>
@@ -2625,7 +2664,7 @@ export default function CompleteMarketplaceForm() {
         </div>
 
         {/* App Details Section */}
-        <div className="form-section u-position-relative">
+        <div data-wizard-step="2" className="form-section u-position-relative">
           <div id="app-details" className="u-scroll-offset"></div>
           <div data-wf--heading--alignment="left-align" id="" className="heading-component">
             <h2 data-heading-mask="" className="h5">App details</h2>
@@ -3058,7 +3097,7 @@ export default function CompleteMarketplaceForm() {
         </div>
 
         {/* App Access Credentials Section */}
-        <div className="form-section u-position-relative">
+        <div data-wizard-step="3" className="form-section u-position-relative">
           <div id="app-credentials-info" className="u-scroll-offset"></div>
           <h2 className="h5">App Access Credentials</h2>
 
@@ -3169,7 +3208,7 @@ N/A`}
         </div>
 
         {/* Support Information Section */}
-        <div id="support-info" className="form-section" style={{ marginTop: '3rem' }}>
+        <div id="support-info" data-wizard-step="4" className="form-section" style={{ marginTop: '3rem' }}>
           <div className="heading-component">
             <h2 className="h5">Support info</h2>
           </div>
@@ -3306,7 +3345,7 @@ N/A`}
 
 
         {/* Acknowledgements Section */}
-        <div className="form-section u-position-relative">
+        <div data-wizard-step="5" className="form-section u-position-relative">
           <div id="acknowledgements" className="u-scroll-offset"></div>
           <div data-wf--heading--alignment="left-align" id="" className="heading-component">
             <h2 data-heading-mask="" className="h5">Acknowledgements</h2>
@@ -3334,17 +3373,53 @@ N/A`}
           </label>
         </div>
 
-        {/* Submit Button */}
-        <div className="form-section">
-          <div className="input-group">
+        {/* Wizard navigation + Submit */}
+        <div className="form-section" style={{ display: 'flex', gap: '0.75rem', alignItems: 'center', flexWrap: 'wrap' }}>
+          {currentStep > 0 && (
+            <button
+              type="button"
+              onClick={goToPreviousStep}
+              style={{
+                padding: '0.625rem 1rem',
+                background: 'transparent',
+                color: 'inherit',
+                border: '1px solid var(--_color---neutral--gray-300, #d0d0d0)',
+                borderRadius: '6px',
+                fontWeight: 600,
+                cursor: 'pointer',
+              }}
+            >
+              Previous
+            </button>
+          )}
+          {currentStep < WIZARD_STEP_COUNT - 1 && (
+            <button
+              type="button"
+              onClick={goToNextStep}
+              style={{
+                padding: '0.625rem 1.25rem',
+                background: 'var(--colors--primary-accent, var(--_color---primary--webflow-blue, #146ef5))',
+                color: '#fff',
+                border: 'none',
+                borderRadius: '6px',
+                fontWeight: 600,
+                cursor: 'pointer',
+                marginLeft: 'auto',
+              }}
+            >
+              Next
+            </button>
+          )}
+          {currentStep === WIZARD_STEP_COUNT - 1 && (
             <input
               type="submit"
               className="btn u-mt-sm w-button"
               value={isSubmitting ? "Submitting..." : "Submit"}
               data-wait="Please wait..."
               disabled={isSubmitting || (formData.clientId && !validationState.clientIdVerified)}
+              style={{ marginLeft: 'auto' }}
             />
-          </div>
+          )}
         </div>
 
         </form>

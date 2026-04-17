@@ -24,18 +24,20 @@ const STATUS_META = {
   },
 };
 
-export default function FormProgressRail({ sections, progress }) {
-  const [activeId, setActiveId] = useState(sections[0]?.id ?? null);
+export default function FormProgressRail({ sections, progress, activeId: activeIdProp, onSectionClick }) {
+  const controlled = activeIdProp !== undefined;
+  const [internalActiveId, setInternalActiveId] = useState(sections[0]?.id ?? null);
+  const activeId = controlled ? activeIdProp : internalActiveId;
 
   useEffect(() => {
-    if (typeof window === 'undefined' || typeof IntersectionObserver === 'undefined') {
+    if (controlled || typeof window === 'undefined' || typeof IntersectionObserver === 'undefined') {
       return undefined;
     }
     const observers = [];
     const onIntersect = (entries) => {
       entries.forEach((entry) => {
         if (entry.isIntersecting) {
-          setActiveId(entry.target.id);
+          setInternalActiveId(entry.target.id);
         }
       });
     };
@@ -49,14 +51,18 @@ export default function FormProgressRail({ sections, progress }) {
       observers.push(observer);
     }
     return () => observers.forEach((observer) => observer.disconnect());
-  }, [sections]);
+  }, [sections, controlled]);
 
   const handleClick = (id) => {
+    if (onSectionClick) {
+      onSectionClick(id);
+      return;
+    }
     const el = typeof document !== 'undefined' ? document.getElementById(id) : null;
     if (el) {
       el.scrollIntoView({ behavior: 'smooth', block: 'start' });
     }
-    setActiveId(id);
+    setInternalActiveId(id);
   };
 
   const percent = Math.max(0, Math.min(100, Math.round(progress ?? 0)));
