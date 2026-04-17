@@ -3342,8 +3342,24 @@ N/A`}
               marginBottom: '1rem',
             }}
           >
-            Need to change something? Use the pills at the top of the form to
-            jump back to any section.
+            Need to change something? Use the{' '}
+            <button
+              type="button"
+              onClick={scrollToFormTop}
+              style={{
+                background: 'none',
+                border: 'none',
+                padding: 0,
+                margin: 0,
+                font: 'inherit',
+                color: 'var(--colors--primary-accent, var(--_color---primary--webflow-blue, #146ef5))',
+                textDecoration: 'underline',
+                cursor: 'pointer',
+              }}
+            >
+              pills at the top of the form
+            </button>{' '}
+            to jump back to any section.
           </div>
           <ReviewSummary sections={REVIEW_SECTIONS} formData={formData} />
         </div>
