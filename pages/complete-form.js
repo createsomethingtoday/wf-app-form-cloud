@@ -306,12 +306,14 @@ export default function CompleteMarketplaceForm() {
       return;
     }
 
-    // Scroll mode: every section is rendered, so jump to the specific anchor.
-    if (typeof document !== 'undefined') {
+    // Scroll mode: every section is rendered, jump to the specific anchor.
+    if (typeof document !== 'undefined' && typeof window !== 'undefined') {
       const section = FORM_SECTIONS[next];
       const el = section ? document.getElementById(section.id) : null;
       if (el) {
-        el.scrollIntoView({ behavior: 'smooth', block: 'start' });
+        const rect = el.getBoundingClientRect();
+        const targetY = Math.max(0, window.scrollY + rect.top - 120);
+        window.scrollTo({ top: targetY, behavior: 'smooth' });
       }
     }
     notifyParentScroll();
@@ -3347,7 +3349,7 @@ N/A`}
         </div>
 
         {/* Review Section */}
-        <div data-wizard-step="6" className="form-section">
+        <div id="review-submission" data-wizard-step="6" className="form-section">
           <div className="heading-component">
             <h2 className="h5">Review your submission</h2>
           </div>
