@@ -4,6 +4,7 @@ import { track } from '@vercel/analytics';
 import { RotateCcw, TriangleAlert, X } from 'lucide-react';
 import FeaturesList from '../components/FeaturesList';
 import FormField from '../components/FormField';
+import FormProgressRail from '../components/FormProgressRail';
 import TextAreaField from '../components/TextAreaField';
 import CheckboxGroup from '../components/CheckboxGroup';
 import {
@@ -59,6 +60,79 @@ function formatDraftAge(savedAt) {
   }
   const hours = Math.round(minutes / 60);
   return `${hours} hour${hours === 1 ? '' : 's'} ago`;
+}
+
+const FORM_SECTIONS = [
+  {
+    id: 'app-info',
+    label: 'App info',
+    fields: [
+      'submissionType',
+      'appName',
+      'clientId',
+      'appCapabilities',
+      'appInstallUrl',
+      'appAvatarImage',
+      'appAvatarAltText',
+      'paymentType',
+      'visibility',
+    ],
+  },
+  {
+    id: 'creator-info',
+    label: 'Creator info',
+    fields: ['creatorName', 'creatorWfAccountEmail', 'creatorContactEmail'],
+  },
+  {
+    id: 'app-details',
+    label: 'App details',
+    fields: [
+      'appCategory',
+      'appPreviewDescription',
+      'appDetailDescription',
+      'appFeaturesOverview',
+      'appWebsiteUrl',
+    ],
+  },
+  {
+    id: 'app-credentials-info',
+    label: 'Credentials',
+    fields: ['appAccessCredentials', 'credentialsTierConfirmation'],
+  },
+  {
+    id: 'support-info',
+    label: 'Support info',
+    fields: [
+      'appDemoVideoUrl',
+      'appPrivacyPolicyUrl',
+      'appSupportEmail',
+      'appSupportUrl',
+      'appTermsUrl',
+    ],
+  },
+  {
+    id: 'acknowledgements',
+    label: 'Agreement',
+    fields: ['agreementAccepted'],
+  },
+];
+
+function computeSectionStatus({ fields, formData, isFieldRequired, hasError }) {
+  if (hasError) {
+    return 'error';
+  }
+  const required = fields.filter((field) => isFieldRequired(field));
+  if (required.length === 0) {
+    return 'complete';
+  }
+  const filled = required.filter((field) => hasMeaningfulFormValue(formData[field]));
+  if (filled.length === required.length) {
+    return 'complete';
+  }
+  if (filled.length > 0) {
+    return 'partial';
+  }
+  return 'empty';
 }
 const DEFAULT_UPDATE_TOGGLES_ENABLED = process.env.NEXT_PUBLIC_UPDATE_TOGGLES_ENABLED === 'true';
 const DEFAULT_AUTOFILL_UPDATE_ENABLED = process.env.NEXT_PUBLIC_AUTOFILL_UPDATE_ENABLED === 'true';
@@ -1737,6 +1811,42 @@ export default function CompleteMarketplaceForm() {
           </div>
         )}
 
+        {(() => {
+          const sectionErrorMap = {
+            'app-info': Boolean(
+              validationState.avatarFileError
+                || validationState.clientIdError
+                || (validationState.screenshotFileErrors || []).some(Boolean)
+                || validationState.screenshotsCountError
+            ),
+            'app-details': Boolean(validationState.featuresError),
+            'support-info': Boolean(validationState.supportError),
+          };
+          const sectionsWithStatus = FORM_SECTIONS.map((section) => ({
+            id: section.id,
+            label: section.label,
+            status: computeSectionStatus({
+              fields: section.fields,
+              formData,
+              isFieldRequired,
+              hasError: sectionErrorMap[section.id],
+            }),
+          }));
+          const totalRequired = FORM_SECTIONS.reduce((acc, section) => {
+            return acc + section.fields.filter((field) => isFieldRequired(field)).length;
+          }, 0);
+          const totalFilled = FORM_SECTIONS.reduce((acc, section) => {
+            return (
+              acc
+              + section.fields.filter(
+                (field) => isFieldRequired(field) && hasMeaningfulFormValue(formData[field])
+              ).length
+            );
+          }, 0);
+          const progress = totalRequired === 0 ? 100 : (totalFilled / totalRequired) * 100;
+          return <FormProgressRail sections={sectionsWithStatus} progress={progress} />;
+        })()}
+
         {/* General Form Errors */}
         {(formStatus.message || validationState.fileSizeError || validationState.submissionError) && (
           <div className="form-section" style={{marginBottom: '2rem'}}>
@@ -1779,7 +1889,7 @@ export default function CompleteMarketplaceForm() {
         )}
 
         {/* App Information Section */}
-        <div className="form-section">
+        <div id="app-info" className="form-section">
           <div className="heading-component">
             <h2 className="h5">App info</h2>
           </div>
@@ -2458,7 +2568,7 @@ export default function CompleteMarketplaceForm() {
         </div>
 
         {/* Creator Information Section */}
-        <div className="form-section">
+        <div id="creator-info" className="form-section">
           <div className="heading-component">
             <h2 className="h5">Creator info</h2>
           </div>
@@ -3059,7 +3169,7 @@ N/A`}
         </div>
 
         {/* Support Information Section */}
-        <div className="form-section" style={{ marginTop: '3rem' }}>
+        <div id="support-info" className="form-section" style={{ marginTop: '3rem' }}>
           <div className="heading-component">
             <h2 className="h5">Support info</h2>
           </div>
