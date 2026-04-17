@@ -3356,10 +3356,7 @@ N/A`}
             Need to change something? Use the{' '}
             <button
               type="button"
-              onClick={() => {
-                ensureWizardMode();
-                scrollToFormTop();
-              }}
+              onClick={() => goToStep(0)}
               style={{
                 background: 'none',
                 border: 'none',
