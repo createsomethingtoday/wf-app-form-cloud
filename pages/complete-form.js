@@ -5,6 +5,7 @@ import { RotateCcw, TriangleAlert, X } from 'lucide-react';
 import FeaturesList from '../components/FeaturesList';
 import FormField from '../components/FormField';
 import FormProgressRail from '../components/FormProgressRail';
+import ReviewSummary from '../components/ReviewSummary';
 import ScreenshotsList from '../components/ScreenshotsList';
 import TextAreaField from '../components/TextAreaField';
 import CheckboxGroup from '../components/CheckboxGroup';
@@ -116,7 +117,14 @@ const FORM_SECTIONS = [
     label: 'Agreement',
     fields: ['agreementAccepted'],
   },
+  {
+    id: 'review-submission',
+    label: 'Review',
+    fields: [],
+  },
 ];
+
+const REVIEW_SECTIONS = FORM_SECTIONS.filter((section) => section.id !== 'review-submission');
 
 function computeSectionStatus({ fields, formData, isFieldRequired, hasError }) {
   if (hasError) {
@@ -3386,6 +3394,25 @@ N/A`}
               By checking this box, you agree to <a href="https://webflow.com/legal/privacy" target="_blank" rel="noopener noreferrer">Webflow's Privacy Policy</a>, <a href="https://webflow.com/legal/terms" target="_blank" rel="noopener noreferrer">Terms of Service</a>, and <a href="https://developers.webflow.com/docs/webflows-developer-terms-of-service" target="_blank" rel="noopener noreferrer">Developer Terms of Service</a>.&nbsp;*
             </span>
           </label>
+        </div>
+
+        {/* Review Section */}
+        <div data-wizard-step="6" className="form-section">
+          <div className="heading-component">
+            <h2 className="h5">Review your submission</h2>
+          </div>
+          <div data-wf--rich-text--alignment="left-align" className="rich-text-component paragraph-sm">
+            <div className="rich-text w-richtext">
+              <p>
+                <span>Double-check the information below. Use Edit on any section to jump back and make changes. Ready when you are — click Submit to send this to our review team.</span>
+              </p>
+            </div>
+          </div>
+          <ReviewSummary
+            sections={REVIEW_SECTIONS}
+            formData={formData}
+            onEdit={(sectionIndex) => goToStep(sectionIndex)}
+          />
         </div>
 
         {/* Wizard navigation + Submit */}
