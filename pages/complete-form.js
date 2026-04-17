@@ -3370,7 +3370,19 @@ N/A`}
             Need to change something? Use the{' '}
             <button
               type="button"
-              onClick={scrollToFormTop}
+              onClick={() => {
+                if (viewMode !== 'wizard') {
+                  setViewMode('wizard');
+                  if (typeof window !== 'undefined') {
+                    try {
+                      window.localStorage.setItem(VIEW_MODE_STORAGE_KEY, 'wizard');
+                    } catch {
+                      // ignore
+                    }
+                  }
+                }
+                scrollToFormTop();
+              }}
               style={{
                 background: 'none',
                 border: 'none',
