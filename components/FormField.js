@@ -88,7 +88,12 @@ export default function FormField({
   const activeErrorMessage = errorMessage || urlError;
   const helpTextId = helpText ? `${id}-help` : undefined;
   const errorId = activeErrorMessage ? `${id}-error` : undefined;
-  const describedBy = [helpTextId, errorId].filter(Boolean).join(' ') || undefined;
+  const currentLength = typeof value === 'string' ? value.length : 0;
+  const showCounter = typeof maxLength === 'number' && currentLength > 0;
+  const counterId = showCounter ? `${id}-count` : undefined;
+  const atLimit = showCounter && currentLength >= maxLength;
+  const nearLimit = showCounter && currentLength >= maxLength * 0.9 && !atLimit;
+  const describedBy = [helpTextId, counterId, errorId].filter(Boolean).join(' ') || undefined;
 
   return (
     <div className={`input-group ${className}`} style={style}>
@@ -145,6 +150,23 @@ export default function FormField({
       {helpText && (
         <div id={helpTextId} className="cc-help-text">
           {helpText}
+        </div>
+      )}
+      {showCounter && (
+        <div
+          id={counterId}
+          style={{
+            marginTop: '0.25rem',
+            fontSize: '0.75rem',
+            textAlign: 'right',
+            color: atLimit
+              ? 'var(--colors--danger, #dc2626)'
+              : nearLimit
+                ? 'var(--colors--warning, #b45309)'
+                : 'var(--colors--text-secondary, var(--_color---neutral--gray-600, #5a5a5a))',
+          }}
+        >
+          {currentLength} / {maxLength}
         </div>
       )}
       {activeErrorMessage && (

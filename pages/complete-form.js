@@ -490,11 +490,34 @@ export default function CompleteMarketplaceForm() {
   const quillDetailRef = useRef();
   const avatarFileRef = useRef();
   const screenshotFileRefs = useRef([]);
+  const hasMountedRef = useRef(false);
 
   // Initialize screenshot refs
   useEffect(() => {
     screenshotFileRefs.current = Array(5).fill(null).map(() => ({ current: null }));
   }, []);
+
+  // Move focus to the first focusable field of a new step (but not on initial mount
+  // so we don't steal focus from things like the draft-resume banner).
+  useEffect(() => {
+    if (!hasMountedRef.current) {
+      hasMountedRef.current = true;
+      return;
+    }
+    if (viewMode !== 'wizard' || typeof document === 'undefined') {
+      return;
+    }
+    const section = document.querySelector(`[data-wizard-step="${currentStep}"]`);
+    if (!section) {
+      return;
+    }
+    const focusable = section.querySelector(
+      'input:not([type="hidden"]):not([disabled]):not([aria-hidden="true"]), textarea:not([disabled]), select:not([disabled])'
+    );
+    if (focusable && typeof focusable.focus === 'function') {
+      focusable.focus({ preventScroll: true });
+    }
+  }, [currentStep, viewMode]);
 
   // On mount: surface a saved draft if one exists and is recent
   useEffect(() => {
@@ -1800,6 +1823,26 @@ export default function CompleteMarketplaceForm() {
         {viewMode === 'wizard' && (
           <style>{`[data-wizard-step]:not([data-wizard-step="${currentStep}"]) { display: none !important; }`}</style>
         )}
+
+        <div
+          aria-live="polite"
+          aria-atomic="true"
+          style={{
+            position: 'absolute',
+            width: '1px',
+            height: '1px',
+            padding: 0,
+            margin: '-1px',
+            overflow: 'hidden',
+            clip: 'rect(0, 0, 0, 0)',
+            whiteSpace: 'nowrap',
+            border: 0,
+          }}
+        >
+          {viewMode === 'wizard' && FORM_SECTIONS[currentStep]
+            ? `Step ${currentStep + 1} of ${WIZARD_STEP_COUNT}: ${FORM_SECTIONS[currentStep].label}`
+            : ''}
+        </div>
 
         {draftBanner && (
           <div

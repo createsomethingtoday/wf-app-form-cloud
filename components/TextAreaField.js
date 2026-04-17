@@ -18,7 +18,11 @@ export default function TextAreaField({
 }) {
   const helpTextId = helpText ? `${id}-help` : undefined;
   const errorId = errorMessage ? `${id}-error` : undefined;
-  const characterCountId = showCharacterCount && maxLength ? `${id}-count` : undefined;
+  const currentLength = typeof value === 'string' ? value.length : 0;
+  const shouldShowCount = typeof maxLength === 'number' && (showCharacterCount || currentLength > 0);
+  const characterCountId = shouldShowCount ? `${id}-count` : undefined;
+  const atLimit = shouldShowCount && currentLength >= maxLength;
+  const nearLimit = shouldShowCount && currentLength >= maxLength * 0.9 && !atLimit;
   const describedBy = [helpTextId, characterCountId, errorId].filter(Boolean).join(' ') || undefined;
 
   return (
@@ -54,14 +58,22 @@ export default function TextAreaField({
           {helpText}
         </div>
       )}
-      {showCharacterCount && maxLength && (
+      {shouldShowCount && (
         <div
           id={characterCountId}
           className="cc-character-count"
-          aria-live="polite"
-          aria-atomic="true"
+          style={{
+            marginTop: '0.25rem',
+            fontSize: '0.75rem',
+            textAlign: 'right',
+            color: atLimit
+              ? 'var(--colors--danger, #dc2626)'
+              : nearLimit
+                ? 'var(--colors--warning, #b45309)'
+                : 'var(--colors--text-secondary, var(--_color---neutral--gray-600, #5a5a5a))',
+          }}
         >
-          {value.length}/{maxLength} characters
+          {currentLength} / {maxLength}
         </div>
       )}
       {errorMessage && (
