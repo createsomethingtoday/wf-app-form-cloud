@@ -1,3 +1,44 @@
+import { useState } from 'react';
+import { Check, TriangleAlert } from 'lucide-react';
+
+function normalizeUrl(value) {
+  const trimmed = value.trim();
+  if (!trimmed) {
+    return trimmed;
+  }
+  if (/^[a-z][a-z0-9+.-]*:\/\//i.test(trimmed)) {
+    return trimmed;
+  }
+  if (/^[\w-]+\.[\w.-]+/.test(trimmed)) {
+    return `https://${trimmed}`;
+  }
+  return trimmed;
+}
+
+function validateUrl(value) {
+  const trimmed = value.trim();
+  if (!trimmed) {
+    return '';
+  }
+
+  let candidate;
+  try {
+    candidate = new URL(trimmed);
+  } catch {
+    return 'Enter a valid URL (e.g. https://example.com).';
+  }
+
+  if (candidate.protocol !== 'http:' && candidate.protocol !== 'https:') {
+    return 'URL must start with http:// or https://.';
+  }
+
+  if (!candidate.hostname.includes('.')) {
+    return 'URL must include a domain (e.g. example.com).';
+  }
+
+  return '';
+}
+
 export default function FormField({
   id,
   name,
@@ -5,6 +46,7 @@ export default function FormField({
   type = 'text',
   value,
   onChange,
+  onBlur,
   required = false,
   maxLength,
   placeholder = '',
@@ -17,8 +59,35 @@ export default function FormField({
   inputClassName = 'input w-input',
   style = {}
 }) {
+  const [urlError, setUrlError] = useState('');
+  const isUrl = type === 'url';
+
+  const handleBlur = (event) => {
+    if (isUrl) {
+      const normalized = normalizeUrl(event.target.value);
+      if (normalized !== event.target.value) {
+        onChange(normalized);
+        setUrlError(validateUrl(normalized));
+      } else {
+        setUrlError(validateUrl(event.target.value));
+      }
+    }
+    if (onBlur) {
+      onBlur(event);
+    }
+  };
+
+  const handleChange = (event) => {
+    if (isUrl && urlError) {
+      setUrlError('');
+    }
+    onChange(event.target.value);
+  };
+
+  const showValidSignal = isUrl && !errorMessage && !urlError && value && value.trim().length > 0 && !validateUrl(value);
+  const activeErrorMessage = errorMessage || urlError;
   const helpTextId = helpText ? `${id}-help` : undefined;
-  const errorId = errorMessage ? `${id}-error` : undefined;
+  const errorId = activeErrorMessage ? `${id}-error` : undefined;
   const describedBy = [helpTextId, errorId].filter(Boolean).join(' ') || undefined;
 
   return (
@@ -35,30 +104,52 @@ export default function FormField({
           </div>
         </div>
       )}
-      <input
-        className={inputClassName}
-        maxLength={maxLength}
-        name={name}
-        data-name={name}
-        placeholder={placeholder}
-        type={type}
-        id={id}
-        value={value}
-        onChange={(e) => onChange(e.target.value)}
-        required={required}
-        autoComplete={autoComplete}
-        aria-invalid={errorMessage ? 'true' : undefined}
-        aria-describedby={describedBy}
-        aria-required={required ? 'true' : undefined}
-      />
+      <div style={{ position: 'relative' }}>
+        <input
+          className={inputClassName}
+          maxLength={maxLength}
+          name={name}
+          data-name={name}
+          placeholder={placeholder}
+          type={type}
+          id={id}
+          value={value}
+          onChange={handleChange}
+          onBlur={handleBlur}
+          required={required}
+          autoComplete={autoComplete}
+          aria-invalid={activeErrorMessage ? 'true' : undefined}
+          aria-describedby={describedBy}
+          aria-required={required ? 'true' : undefined}
+          style={isUrl ? { paddingRight: '2.25rem' } : undefined}
+        />
+        {isUrl && (showValidSignal || activeErrorMessage) && (
+          <span
+            aria-hidden="true"
+            style={{
+              position: 'absolute',
+              right: '0.75rem',
+              top: '50%',
+              transform: 'translateY(-50%)',
+              display: 'inline-flex',
+              alignItems: 'center',
+              color: showValidSignal
+                ? 'var(--colors--success, #15803d)'
+                : 'var(--colors--danger, #dc2626)',
+            }}
+          >
+            {showValidSignal ? <Check size={16} /> : <TriangleAlert size={16} />}
+          </span>
+        )}
+      </div>
       {helpText && (
         <div id={helpTextId} className="cc-help-text">
           {helpText}
         </div>
       )}
-      {errorMessage && (
+      {activeErrorMessage && (
         <div id={errorId} className="validation-error-message cc-error_text" role="alert">
-          {errorMessage}
+          {activeErrorMessage}
         </div>
       )}
     </div>
