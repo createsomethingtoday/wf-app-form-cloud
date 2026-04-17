@@ -316,6 +316,7 @@ export default function CompleteMarketplaceForm() {
   const [draftBanner, setDraftBanner] = useState(null);
   const [currentStep, setCurrentStep] = useState(0);
   const [viewMode, setViewMode] = useState('wizard');
+  const [stepGateMissing, setStepGateMissing] = useState(null);
 
   const WIZARD_STEP_COUNT = FORM_SECTIONS.length;
   const VIEW_MODE_STORAGE_KEY = 'wf-app-form-view-mode';
@@ -392,8 +393,32 @@ export default function CompleteMarketplaceForm() {
     scrollToFormTop();
   };
 
-  const goToNextStep = () => goToStep(Math.min(currentStep + 1, WIZARD_STEP_COUNT - 1));
-  const goToPreviousStep = () => goToStep(Math.max(currentStep - 1, 0));
+  const getMissingRequiredFieldsForStep = (stepIndex) => {
+    const section = FORM_SECTIONS[stepIndex];
+    if (!section) {
+      return [];
+    }
+    return section.fields.filter(
+      (field) => isFieldRequired(field) && !hasMeaningfulFormValue(formData[field])
+    );
+  };
+
+  const goToNextStep = () => {
+    if (viewMode === 'wizard') {
+      const missing = getMissingRequiredFieldsForStep(currentStep);
+      if (missing.length > 0) {
+        setStepGateMissing({ stepIndex: currentStep, count: missing.length });
+        return;
+      }
+    }
+    setStepGateMissing(null);
+    goToStep(Math.min(currentStep + 1, WIZARD_STEP_COUNT - 1));
+  };
+
+  const goToPreviousStep = () => {
+    setStepGateMissing(null);
+    goToStep(Math.max(currentStep - 1, 0));
+  };
 
   // Jump to the step containing a given element, then scroll it into view
   // once React has flipped the step's display state.
@@ -551,6 +576,24 @@ export default function CompleteMarketplaceForm() {
       }
     }
   }, []);
+
+  // Warn the user before they close the tab with unsaved work. Complements autosave
+  // by covering the ~1s debounce window plus any browsers that disable localStorage.
+  useEffect(() => {
+    if (typeof window === 'undefined' || submissionSuccess) {
+      return undefined;
+    }
+    const handler = (event) => {
+      const data = serializableFormData(formData);
+      if (!hasMeaningfulFormValue(data)) {
+        return;
+      }
+      event.preventDefault();
+      event.returnValue = '';
+    };
+    window.addEventListener('beforeunload', handler);
+    return () => window.removeEventListener('beforeunload', handler);
+  }, [formData, submissionSuccess]);
 
   // Persist the form to localStorage (debounced) so a tab close doesn't wipe progress
   useEffect(() => {
@@ -3346,6 +3389,30 @@ N/A`}
         </div>
 
         {/* Wizard navigation + Submit */}
+        {stepGateMissing && stepGateMissing.stepIndex === currentStep && viewMode === 'wizard' && (
+          <div
+            role="alert"
+            style={{
+              display: 'flex',
+              alignItems: 'flex-start',
+              gap: '0.5rem',
+              padding: '0.75rem 1rem',
+              marginTop: '1rem',
+              border: '1px solid var(--colors--danger, #dc2626)',
+              borderRadius: '6px',
+              background: 'color-mix(in srgb, var(--colors--danger, #dc2626) 8%, transparent)',
+              color: 'var(--colors--danger, #dc2626)',
+              fontSize: '0.875rem',
+            }}
+          >
+            <TriangleAlert size={16} style={{ flexShrink: 0, marginTop: '2px' }} aria-hidden="true" />
+            <span>
+              {stepGateMissing.count === 1
+                ? '1 required field is still empty. Fill it in before continuing.'
+                : `${stepGateMissing.count} required fields are still empty. Fill them in before continuing.`}
+            </span>
+          </div>
+        )}
         <div className="form-section" style={{ display: 'flex', gap: '0.75rem', alignItems: 'center', flexWrap: 'wrap' }}>
           {viewMode === 'wizard' && currentStep > 0 && (
             <button

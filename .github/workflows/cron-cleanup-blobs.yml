@@ -1,0 +1,22 @@
+name: Cron — Clean up old blob uploads
+
+on:
+  schedule:
+    - cron: '0 */6 * * *'
+  workflow_dispatch: {}
+
+jobs:
+  ping:
+    runs-on: ubuntu-latest
+    steps:
+      - name: POST /api/cron/cleanup-blobs
+        env:
+          CRON_SECRET: ${{ secrets.CRON_SECRET }}
+        run: |
+          if [ -z "$CRON_SECRET" ]; then
+            echo "CRON_SECRET secret is not set in this repository."
+            exit 1
+          fi
+          curl --fail --show-error --silent -X POST \
+            "https://webflow-app-form.webflow.io/app-form/api/cron/cleanup-blobs" \
+            -H "Authorization: Bearer $CRON_SECRET"
