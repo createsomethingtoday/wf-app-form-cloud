@@ -273,17 +273,17 @@ export default function CompleteMarketplaceForm() {
     }
   };
 
-  const notifyParentScroll = () => {
-    if (typeof window === 'undefined' || window.parent === window) {
+  const ensureWizardMode = () => {
+    if (viewMode === 'wizard') {
       return;
     }
-    try {
-      window.parent.postMessage(
-        { type: 'SCROLL_TO_FORM', source: 'webflow-form-app' },
-        '*'
-      );
-    } catch {
-      // ignore
+    setViewMode('wizard');
+    if (typeof window !== 'undefined') {
+      try {
+        window.localStorage.setItem(VIEW_MODE_STORAGE_KEY, 'wizard');
+      } catch {
+        // ignore
+      }
     }
   };
 
@@ -298,25 +298,11 @@ export default function CompleteMarketplaceForm() {
       return;
     }
     setCurrentStep(next);
-
-    if (viewMode === 'wizard') {
-      // Step isolation hides non-current sections, so scroll to iframe top
-      // places the target step right below the sticky progress rail.
-      scrollToFormTop();
-      return;
-    }
-
-    // Scroll mode: every section is rendered, jump to the specific anchor.
-    if (typeof document !== 'undefined' && typeof window !== 'undefined') {
-      const section = FORM_SECTIONS[next];
-      const el = section ? document.getElementById(section.id) : null;
-      if (el) {
-        const rect = el.getBoundingClientRect();
-        const targetY = Math.max(0, window.scrollY + rect.top - 120);
-        window.scrollTo({ top: targetY, behavior: 'smooth' });
-      }
-    }
-    notifyParentScroll();
+    // Navigating to a step always puts the user in step mode. Step isolation
+    // is the reliable way to land on the target section — scrolling coordination
+    // across the iframe/parent boundary in scroll mode was fragile.
+    ensureWizardMode();
+    scrollToFormTop();
   };
 
   const getMissingRequiredFieldsForStep = (stepIndex) => {
@@ -3371,16 +3357,7 @@ N/A`}
             <button
               type="button"
               onClick={() => {
-                if (viewMode !== 'wizard') {
-                  setViewMode('wizard');
-                  if (typeof window !== 'undefined') {
-                    try {
-                      window.localStorage.setItem(VIEW_MODE_STORAGE_KEY, 'wizard');
-                    } catch {
-                      // ignore
-                    }
-                  }
-                }
+                ensureWizardMode();
                 scrollToFormTop();
               }}
               style={{
