@@ -3,6 +3,7 @@ import { deletePublicFile } from '../../../lib/blobStore';
 import { trackEvent } from '../../../lib/analytics';
 import { getEnvValue } from '../../../lib/cloudflareRuntime';
 import { constantTimeEqual } from '../../../lib/constantTimeEqual';
+import { reportError } from '../../../lib/reportError';
 
 /**
  * Automatic blob cleanup cron job
@@ -139,7 +140,7 @@ export default async function handler(req, res) {
     });
 
   } catch (error) {
-    console.error('Blob cleanup job error:', error);
+    await reportError('Blob cleanup job error', error);
     res.status(500).json({
       success: false,
       message: 'Blob cleanup job failed',

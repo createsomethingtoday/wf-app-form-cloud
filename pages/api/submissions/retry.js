@@ -1,6 +1,7 @@
 import { db } from '../../../lib/db';
 import { requireAdminApiToken } from '../../../lib/apiAuth';
 import { trackEvent } from '../../../lib/analytics';
+import { reportError } from '../../../lib/reportError';
 import { buildSubmissionWebhookData, sendSubmissionWebhook } from '../../../lib/submissionPayload';
 
 /**
@@ -148,7 +149,7 @@ export default async function handler(req, res) {
     }
 
   } catch (error) {
-    console.error('Retry submission error:', error);
+    await reportError('Retry submission error', error);
     res.status(500).json({
       success: false,
       message: 'Failed to retry submission',

@@ -2,6 +2,7 @@ import { db } from '../../../lib/db';
 import { trackEvent } from '../../../lib/analytics';
 import { getEnvValue } from '../../../lib/cloudflareRuntime';
 import { constantTimeEqual } from '../../../lib/constantTimeEqual';
+import { reportError } from '../../../lib/reportError';
 import { buildSubmissionWebhookData, sendSubmissionWebhook } from '../../../lib/submissionPayload';
 
 /**
@@ -149,7 +150,7 @@ export default async function handler(req, res) {
     });
 
   } catch (error) {
-    console.error('Automatic retry job error:', error);
+    await reportError('Automatic retry job error', error);
     res.status(500).json({
       success: false,
       message: 'Retry job failed',
