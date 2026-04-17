@@ -24,7 +24,7 @@ const STATUS_META = {
   },
 };
 
-export default function FormProgressRail({ sections, progress, activeId: activeIdProp, onSectionClick }) {
+export default function FormProgressRail({ sections, progress, activeId: activeIdProp, onSectionClick, viewMode, onToggleViewMode }) {
   const controlled = activeIdProp !== undefined;
   const [internalActiveId, setInternalActiveId] = useState(sections[0]?.id ?? null);
   const activeId = controlled ? activeIdProp : internalActiveId;
@@ -117,6 +117,25 @@ export default function FormProgressRail({ sections, progress, activeId: activeI
             }}
           />
         </div>
+        {onToggleViewMode && (
+          <button
+            type="button"
+            onClick={onToggleViewMode}
+            style={{
+              background: 'transparent',
+              border: 'none',
+              padding: '0.25rem 0.5rem',
+              fontSize: '0.8125rem',
+              fontWeight: 500,
+              color: 'var(--colors--primary-accent, var(--_color---primary--webflow-blue, #146ef5))',
+              cursor: 'pointer',
+              whiteSpace: 'nowrap',
+              textDecoration: 'underline',
+            }}
+          >
+            {viewMode === 'scroll' ? 'Use step mode' : 'Show all fields'}
+          </button>
+        )}
       </div>
 
       <ul

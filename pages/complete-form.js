@@ -314,8 +314,40 @@ export default function CompleteMarketplaceForm() {
   const [formStatus, setFormStatus] = useState({ type: '', message: '' });
   const [draftBanner, setDraftBanner] = useState(null);
   const [currentStep, setCurrentStep] = useState(0);
+  const [viewMode, setViewMode] = useState('wizard');
 
   const WIZARD_STEP_COUNT = FORM_SECTIONS.length;
+  const VIEW_MODE_STORAGE_KEY = 'wf-app-form-view-mode';
+
+  // Restore saved view mode preference on mount
+  useEffect(() => {
+    if (typeof window === 'undefined') {
+      return;
+    }
+    try {
+      const stored = window.localStorage.getItem(VIEW_MODE_STORAGE_KEY);
+      if (stored === 'wizard' || stored === 'scroll') {
+        setViewMode(stored);
+      }
+    } catch {
+      // ignore
+    }
+  }, []);
+
+  const toggleViewMode = () => {
+    setViewMode((prev) => {
+      const next = prev === 'wizard' ? 'scroll' : 'wizard';
+      if (typeof window !== 'undefined') {
+        try {
+          window.localStorage.setItem(VIEW_MODE_STORAGE_KEY, next);
+        } catch {
+          // ignore
+        }
+      }
+      return next;
+    });
+    scrollToFormTop();
+  };
 
   const scrollToFormTop = () => {
     if (typeof window === 'undefined') {
@@ -1770,7 +1802,9 @@ export default function CompleteMarketplaceForm() {
           style={{display: submissionSuccess ? 'none' : 'block'}}
         >
 
-        <style>{`[data-wizard-step]:not([data-wizard-step="${currentStep}"]) { display: none !important; }`}</style>
+        {viewMode === 'wizard' && (
+          <style>{`[data-wizard-step]:not([data-wizard-step="${currentStep}"]) { display: none !important; }`}</style>
+        )}
 
         {draftBanner && (
           <div
@@ -1871,13 +1905,23 @@ export default function CompleteMarketplaceForm() {
             );
           }, 0);
           const progress = totalRequired === 0 ? 100 : (totalFilled / totalRequired) * 100;
-          const activeSectionId = FORM_SECTIONS[currentStep]?.id;
+          const activeSectionId = viewMode === 'wizard' ? FORM_SECTIONS[currentStep]?.id : undefined;
+          const onSectionClick = viewMode === 'wizard'
+            ? (id) => goToStep(id)
+            : (id) => {
+                const el = typeof document !== 'undefined' ? document.getElementById(id) : null;
+                if (el) {
+                  el.scrollIntoView({ behavior: 'smooth', block: 'start' });
+                }
+              };
           return (
             <FormProgressRail
               sections={sectionsWithStatus}
               progress={progress}
               activeId={activeSectionId}
-              onSectionClick={(id) => goToStep(id)}
+              onSectionClick={onSectionClick}
+              viewMode={viewMode}
+              onToggleViewMode={toggleViewMode}
             />
           );
         })()}
@@ -3371,7 +3415,7 @@ N/A`}
 
         {/* Wizard navigation + Submit */}
         <div className="form-section" style={{ display: 'flex', gap: '0.75rem', alignItems: 'center', flexWrap: 'wrap' }}>
-          {currentStep > 0 && (
+          {viewMode === 'wizard' && currentStep > 0 && (
             <button
               type="button"
               onClick={goToPreviousStep}
@@ -3388,7 +3432,7 @@ N/A`}
               Previous
             </button>
           )}
-          {currentStep < WIZARD_STEP_COUNT - 1 && (
+          {viewMode === 'wizard' && currentStep < WIZARD_STEP_COUNT - 1 && (
             <button
               type="button"
               onClick={goToNextStep}
@@ -3406,7 +3450,7 @@ N/A`}
               Next
             </button>
           )}
-          {currentStep === WIZARD_STEP_COUNT - 1 && (
+          {(viewMode === 'scroll' || currentStep === WIZARD_STEP_COUNT - 1) && (
             <input
               type="submit"
               className="btn u-mt-sm w-button"
