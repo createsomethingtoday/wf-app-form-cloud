@@ -17,15 +17,5 @@
         }
       ]
     }
-  ],
-  "crons": [
-    {
-      "path": "/api/cron/retry-failed",
-      "schedule": "*/15 * * * *"
-    },
-    {
-      "path": "/api/cron/cleanup-blobs",
-      "schedule": "0 */6 * * *"
-    }
   ]
 }
