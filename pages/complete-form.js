@@ -273,6 +273,20 @@ export default function CompleteMarketplaceForm() {
     }
   };
 
+  const notifyParentScroll = () => {
+    if (typeof window === 'undefined' || window.parent === window) {
+      return;
+    }
+    try {
+      window.parent.postMessage(
+        { type: 'SCROLL_TO_FORM', source: 'webflow-form-app' },
+        '*'
+      );
+    } catch {
+      // ignore
+    }
+  };
+
   const goToStep = (target) => {
     let next;
     if (typeof target === 'number') {
@@ -284,7 +298,23 @@ export default function CompleteMarketplaceForm() {
       return;
     }
     setCurrentStep(next);
-    scrollToFormTop();
+
+    if (viewMode === 'wizard') {
+      // Step isolation hides non-current sections, so scroll to iframe top
+      // places the target step right below the sticky progress rail.
+      scrollToFormTop();
+      return;
+    }
+
+    // Scroll mode: every section is rendered, so jump to the specific anchor.
+    if (typeof document !== 'undefined') {
+      const section = FORM_SECTIONS[next];
+      const el = section ? document.getElementById(section.id) : null;
+      if (el) {
+        el.scrollIntoView({ behavior: 'smooth', block: 'start' });
+      }
+    }
+    notifyParentScroll();
   };
 
   const getMissingRequiredFieldsForStep = (stepIndex) => {
@@ -1882,14 +1912,7 @@ export default function CompleteMarketplaceForm() {
           }, 0);
           const progress = totalRequired === 0 ? 100 : (totalFilled / totalRequired) * 100;
           const activeSectionId = viewMode === 'wizard' ? FORM_SECTIONS[currentStep]?.id : undefined;
-          const onSectionClick = viewMode === 'wizard'
-            ? (id) => goToStep(id)
-            : (id) => {
-                const el = typeof document !== 'undefined' ? document.getElementById(id) : null;
-                if (el) {
-                  el.scrollIntoView({ behavior: 'smooth', block: 'start' });
-                }
-              };
+          const onSectionClick = (id) => goToStep(id);
           return (
             <FormProgressRail
               sections={sectionsWithStatus}
