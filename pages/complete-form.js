@@ -317,6 +317,34 @@ export default function CompleteMarketplaceForm() {
 
   const WIZARD_STEP_COUNT = FORM_SECTIONS.length;
 
+  const scrollToFormTop = () => {
+    if (typeof window === 'undefined') {
+      return;
+    }
+    try {
+      window.scrollTo({ top: 0, behavior: 'smooth' });
+      document.documentElement.scrollTop = 0;
+      document.body.scrollTop = 0;
+    } catch {
+      // ignore
+    }
+    if (window.parent !== window) {
+      try {
+        window.parent.postMessage({
+          type: 'SCROLL_TO_FORM',
+          source: 'webflow-form-app',
+        }, '*');
+      } catch {
+        // ignore
+      }
+      try {
+        window.parent.location.hash = '#form-top';
+      } catch {
+        // Cross-origin embed — expected
+      }
+    }
+  };
+
   const goToStep = (target) => {
     let next;
     if (typeof target === 'number') {
@@ -328,9 +356,7 @@ export default function CompleteMarketplaceForm() {
       return;
     }
     setCurrentStep(next);
-    if (typeof window !== 'undefined') {
-      window.scrollTo({ top: 0, behavior: 'smooth' });
-    }
+    scrollToFormTop();
   };
 
   const goToNextStep = () => goToStep(Math.min(currentStep + 1, WIZARD_STEP_COUNT - 1));
