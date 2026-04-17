@@ -250,20 +250,6 @@ export default function CompleteMarketplaceForm() {
     scrollToFormTop();
   };
 
-  const notifyParentScroll = () => {
-    if (typeof window === 'undefined' || window.parent === window) {
-      return;
-    }
-    try {
-      window.parent.postMessage(
-        { type: 'SCROLL_TO_FORM', source: 'webflow-form-app' },
-        '*'
-      );
-    } catch {
-      // ignore cross-origin failures
-    }
-  };
-
   const scrollToFormTop = () => {
     if (typeof window === 'undefined') {
       return;
@@ -275,20 +261,16 @@ export default function CompleteMarketplaceForm() {
     } catch {
       // ignore
     }
-    notifyParentScroll();
-  };
-
-  const scrollToSection = (sectionId) => {
-    if (typeof window === 'undefined' || typeof document === 'undefined') {
-      return;
-    }
-    window.requestAnimationFrame(() => {
-      const el = document.getElementById(sectionId);
-      if (el) {
-        el.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    if (window.parent !== window) {
+      try {
+        window.parent.postMessage(
+          { type: 'SCROLL_TO_FORM', source: 'webflow-form-app' },
+          '*'
+        );
+      } catch {
+        // ignore cross-origin failures
       }
-    });
-    notifyParentScroll();
+    }
   };
 
   const goToStep = (target) => {
@@ -302,12 +284,7 @@ export default function CompleteMarketplaceForm() {
       return;
     }
     setCurrentStep(next);
-    const section = FORM_SECTIONS[next];
-    if (section) {
-      scrollToSection(section.id);
-    } else {
-      scrollToFormTop();
-    }
+    scrollToFormTop();
   };
 
   const getMissingRequiredFieldsForStep = (stepIndex) => {
@@ -3358,11 +3335,17 @@ N/A`}
               </p>
             </div>
           </div>
-          <ReviewSummary
-            sections={REVIEW_SECTIONS}
-            formData={formData}
-            onEdit={(sectionIndex) => goToStep(sectionIndex)}
-          />
+          <div
+            style={{
+              fontSize: '0.875rem',
+              color: 'var(--colors--text-secondary, var(--_color---neutral--gray-600, #5a5a5a))',
+              marginBottom: '1rem',
+            }}
+          >
+            Need to change something? Use the pills at the top of the form to
+            jump back to any section.
+          </div>
+          <ReviewSummary sections={REVIEW_SECTIONS} formData={formData} />
         </div>
 
         {/* Wizard navigation + Submit */}

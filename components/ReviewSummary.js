@@ -1,5 +1,3 @@
-import { Pencil } from 'lucide-react';
-
 const FIELD_LABELS = {
   submissionType: 'Submission type',
   appName: 'App name',
@@ -74,10 +72,10 @@ function humanizeFieldName(key) {
     .trim();
 }
 
-export default function ReviewSummary({ sections, formData, onEdit }) {
+export default function ReviewSummary({ sections, formData }) {
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
-      {sections.map((section, sectionIndex) => {
+      {sections.map((section) => {
         const visibleFields = section.fields.filter((field) => FIELD_LABELS[field] || field in formData);
         return (
           <div
@@ -88,36 +86,9 @@ export default function ReviewSummary({ sections, formData, onEdit }) {
               padding: '1rem 1.25rem',
             }}
           >
-            <div
-              style={{
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'space-between',
-                marginBottom: '0.75rem',
-              }}
-            >
-              <h3 style={{ margin: 0, fontSize: '1rem', fontWeight: 600 }}>{section.label}</h3>
-              <button
-                type="button"
-                onClick={() => onEdit(sectionIndex)}
-                style={{
-                  display: 'inline-flex',
-                  alignItems: 'center',
-                  gap: '0.375rem',
-                  padding: '0.375rem 0.75rem',
-                  background: 'transparent',
-                  color: 'var(--colors--primary-accent, var(--_color---primary--webflow-blue, #146ef5))',
-                  border: '1px solid var(--colors--primary-accent, var(--_color---primary--webflow-blue, #146ef5))',
-                  borderRadius: '6px',
-                  fontSize: '0.8125rem',
-                  fontWeight: 600,
-                  cursor: 'pointer',
-                }}
-              >
-                <Pencil size={14} aria-hidden="true" />
-                Edit
-              </button>
-            </div>
+            <h3 style={{ margin: '0 0 0.75rem 0', fontSize: '1rem', fontWeight: 600 }}>
+              {section.label}
+            </h3>
             <dl
               style={{
                 display: 'grid',
