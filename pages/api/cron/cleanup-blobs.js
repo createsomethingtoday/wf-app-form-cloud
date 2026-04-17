@@ -2,6 +2,7 @@ import { db } from '../../../lib/db';
 import { deletePublicFile } from '../../../lib/blobStore';
 import { trackEvent } from '../../../lib/analytics';
 import { getEnvValue } from '../../../lib/cloudflareRuntime';
+import { constantTimeEqual } from '../../../lib/constantTimeEqual';
 
 /**
  * Automatic blob cleanup cron job
@@ -27,7 +28,8 @@ export default async function handler(req, res) {
     return res.status(503).json({ message: 'CRON_SECRET is not configured' });
   }
 
-  if (authHeader !== `Bearer ${cronSecret}`) {
+  const expected = `Bearer ${cronSecret}`;
+  if (!constantTimeEqual(authHeader || '', expected)) {
     return res.status(401).json({ message: 'Unauthorized' });
   }
 
