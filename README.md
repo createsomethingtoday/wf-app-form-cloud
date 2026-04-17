@@ -1,773 +1,399 @@
-# Webflow Marketplace Form - Production Application
+# Webflow Marketplace App Submission Form
 
-A production-grade Next.js application for managing Webflow marketplace app submissions with automatic retry, file storage, database tracking, and comprehensive error handling.
-
-## Overview
-
-This is a complete submission management system that handles form submissions, file uploads, webhook delivery to Airtable, automatic retry on failures, and lifecycle management of uploaded files. The form can be embedded in Webflow via iframe and provides full control over data structure and delivery.
+A Next.js submission form embedded via iframe in
+[developers.webflow.com/submit](https://developers.webflow.com/submit). It
+collects marketplace app submissions, persists them to a Cloudflare D1
+database, uploads attachments to Cloudflare R2, delivers the payload to
+Airtable via webhook, and retries on failure.
 
 ## Architecture
 
 ```
-User Submission → Form Processing → Database Record → File Upload (Vercel Blob)
-                                         ↓
-                    ← Success Response ← Webhook Delivery → Airtable
-                                         ↓ (on failure)
-                    Automatic Retry (every 15 min, max 3 attempts)
-                                         ↓
-                    Blob Cleanup (24h after success)
+       ┌──────────────────────────────────────────────────────────────────┐
+       │                 developers.webflow.com/submit (iframe host)      │
+       │                                                                  │
+       │   ┌────────────────────────────────────────────────────────────┐ │
+       │   │   webflow-app-form.webflow.io/app-form  (this repo)        │ │
+       │   │   Next.js 15 + OpenNext on Webflow Cloud (Cloudflare)      │ │
+       │   │                                                            │ │
+       │   │   Submit → D1 REST ────────────► Cloudflare D1             │ │
+       │   │          → R2 via S3 (aws4fetch) ► Cloudflare R2           │ │
+       │   │          → Webhook (Airtable)                              │ │
+       │   └────────────────────────────────────────────────────────────┘ │
+       └──────────────────────────────────────────────────────────────────┘
+
+       Separately:
+       ┌──────────────────────────────────────────────────────────────────┐
+       │ GitHub Actions scheduled workflows                               │
+       │   ─ every 15 min → POST /api/cron/retry-failed                   │
+       │   ─ every  6 hr  → POST /api/cron/cleanup-blobs                  │
+       └──────────────────────────────────────────────────────────────────┘
 ```
 
-### Key Components:
-
-- **Next.js Frontend**: Embeddable form with rich text editor
-- **Vercel Postgres**: Persistent submission tracking and audit trail
-- **Vercel Blob Storage**: File hosting for avatars and screenshots
-- **Airtable Webhook**: Delivery endpoint for form data
-- **Cron Jobs**: Automatic retry for failures + blob cleanup
-- **Vercel Analytics**: Event tracking and monitoring
+**Key bit worth knowing up front:** the app is deployed on Webflow Cloud, but
+D1 and R2 live in the *user's own* Cloudflare account and are accessed over
+HTTP — not through Worker bindings. That's deliberate: OpenNext 1.8.0 on
+Webflow Cloud rejects `export const runtime = 'edge'` on App Router routes,
+which is what Webflow Cloud's docs require for Worker bindings to reach the
+handler. Going over HTTP sidesteps that deadlock entirely. See
+`lib/d1Client.js` and `lib/r2Client.js`.
 
 ## Features
 
-### Core Features
-✅ **Identical functionality** to original Webflow form (line 6952-12164)
-✅ **Quill.js rich text editor** for long descriptions
-✅ **Dynamic field validation** based on submission type
-✅ **Client ID verification** with custom endpoint
-✅ **Auto-fill for updates** - Pre-populate form from existing Airtable data
-✅ **Embeddable via iframe** with parent CSS inheritance
+### Form UX
 
-### Production Features
-✅ **Database-backed tracking** - Full audit trail of all submissions
-✅ **Automatic retry system** - 3 attempts with exponential backoff
-✅ **File lifecycle management** - Automatic cleanup after 24 hours
-✅ **Submission search API** - Query by app name, client ID, status, date range
-✅ **Manual retry endpoint** - Support team can retry failed submissions
-✅ **Error tracking** - Detailed error messages and retry counts
-✅ **Monitoring & alerts** - Failure rate and performance monitoring
-✅ **Vercel Analytics** - Track webhooks, retries, failures
+- **Step wizard by default** with a progress rail at the top. Each of 7 steps
+  (App info → Creator info → App details → Credentials → Support info →
+  Agreement → Review) is isolated via CSS `display: none` so validation, refs,
+  and the Quill editor stay mounted.
+- **Show all fields toggle** (persisted in `localStorage`) to read the whole
+  form at once.
+- **Dynamic features list** — single input with Enter-to-add, reorder via
+  ↑↓, remove via ×. Replaces five fixed `Feature 1..5` inputs.
+- **Dynamic screenshots list** — drop zone + per-item card with thumbnail,
+  inline alt-text, size, reorder, remove.
+- **Drag-and-drop** on the app icon upload, with image thumbnail preview.
+- **Inline URL validation** — green check / red warning on blur, auto-prepends
+  `https://`.
+- **Segmented support contact picker** — Email or Website, not both; replaces
+  the old "either/or required" banner.
+- **Review step** with per-section Edit pills that jump back into that step.
+- **Autosave to `localStorage`** every ~1s debounced. On return within 24 h a
+  blue banner offers to resume.
+- **`beforeunload` warning** when unsaved work exists.
+- **Character counters** on fields with `maxLength`, amber at 90%, red at
+  limit.
+- **Focus-on-step-change** + `aria-live` step announcement for keyboard and
+  screen-reader users.
 
-## Quick Start
+### Backend
 
-### 1. Install Dependencies
+- **Cloudflare D1 via REST** (`lib/d1Client.js`). Queries use the same
+  prepared-statement shape you'd get from a Worker binding.
+- **Cloudflare R2 via S3 API** (`lib/r2Client.js`). Signed with
+  [`aws4fetch`](https://github.com/mhart/aws4fetch).
+- **Airtable webhook** on submit. Full submission body plus URLs to the R2
+  blobs.
+- **Submission lifecycle** tracked in D1: `processing` → `pending` →
+  `webhook_success` / `webhook_failed`.
+- **Automatic retries** via GitHub Actions scheduled workflow hitting
+  `/api/cron/retry-failed` every 15 min. 3 attempts, 15-min backoff.
+- **Blob cleanup** via a second workflow every 6 h — drops R2 objects for
+  submissions older than 24 h that delivered successfully.
+- **Search and single-submission APIs** for the reviewer team, gated by
+  `ADMIN_API_TOKEN`.
+- **Airtable autofill** for Update submissions via a short-lived HMAC token
+  minted by `/api/verify-client-id`.
+
+## Local development
+
 ```bash
+git clone https://github.com/createsomethingtoday/wf-app-form-cloud.git
+cd wf-app-form-cloud
 npm install
-```
 
-### 2. Configure Environment Variables
-
-Copy the example file and fill in your values:
-
-```bash
+# Env for local dev — see Environment variables section
 cp .env.local.example .env.local
+$EDITOR .env.local
+
+npm run dev     # http://localhost:3000
+npm test        # vitest — 57 tests cover the pure-function layer
+npm run lint
 ```
 
-**Required variables** (see [Environment Variables](#environment-variables) section for complete list):
-- Database credentials (Vercel Postgres)
-- Blob storage token
-- Webhook URL (shared Airtable endpoint)
-- Cron secret for scheduled jobs
-
-### 3. Initialize Database
-
-Run the database initialization script to create the submissions table:
-
-```bash
-# Connect to your Vercel Postgres database and run:
-psql $DATABASE_URL < scripts/init-db.sql
-```
-
-Or use the Vercel dashboard to run the SQL in `scripts/init-db.sql`.
-
-### 4. Run Locally
-```bash
-npm run dev
-# Visit http://localhost:3000
-```
-
-### 5. Deploy to Vercel
-```bash
-npm run build
-vercel --prod
-```
-
-The cron jobs will automatically be configured from `vercel.json`.
-
-## Webflow Cloud
-
-This project now includes a Webflow Cloud-compatible app shape:
-
-- `webflow.json` declares the project as a Next.js Webflow Cloud app
-- `wrangler.json` carries the minimal Wrangler metadata plus the storage bindings Webflow Cloud reads at deploy time
-- `next.config.js` respects `BASE_URL` and `ASSETS_PREFIX` so the app can be mounted inside Webflow product paths
-- `/api/submit-form` runs as an App Router route handler using `Request`, `FormData`, and `File` APIs instead of `formidable`/`fs`
-- `/api/uploads/[...key]` serves uploaded files publicly from the private `FORM_UPLOADS` object storage binding
-- `/api/submissions/import` plus `scripts/backfill-webflow-cloud.mjs` support one-time data migration into D1/R2
-- `scripts/migrations/0001_create_submissions.sql` boots the D1 schema for fresh Webflow Cloud environments
-
-### Webflow Cloud prerequisites
-
-1. Create a Webflow Cloud project in the Webflow UI and connect it to the GitHub repository that contains this app.
-2. Configure the Webflow Cloud environment path, such as `/app-form`.
-3. Add the app runtime environment variables in the Webflow Cloud UI using `.env.local.example` as the source of truth. `FORM_UPLOADS_PUBLIC_URL` must point at the deployed app route, for example `https://webflow-app-form.webflow.io/app-form/api/uploads`, not the raw `pub-...r2.dev` bucket URL.
-4. If you want the Update flow to expose the "Load Existing App Data" path in production, set `NEXT_PUBLIC_UPDATE_TOGGLES_ENABLED=true` and `NEXT_PUBLIC_AUTOFILL_UPDATE_ENABLED=true`.
-5. Set either `AUTOFILL_TOKEN_SECRET` or `ADMIN_API_TOKEN` so the app can mint short-lived autofill tokens for Airtable reads.
-6. Use the Webflow CLI to authenticate against the target site if you want to trigger deployments from your terminal:
-
-```bash
-webflow auth login
-```
-
-This creates a root `.env` file containing `WEBFLOW_SITE_ID` and `WEBFLOW_API_TOKEN`. A starter template is included in `.env.example`.
-
-### Webflow Cloud deploy
-
-Once the project exists in Webflow and the root `.env` is present:
-
-```bash
-webflow cloud deploy
-```
-
-### Notes
-
-- Webflow Cloud currently expects a Next.js 15+ project.
-- Webflow Cloud manages the worker runtime config; keep repo `wrangler.json` limited to storage bindings and migrations.
-- `@opennextjs/cloudflare` expects the Node runtime, so do not add `export const runtime = "edge"` to app routes.
-- The Cloudflare/OpenNext code path still exists, but direct standalone Cloudflare deployment now needs its own full worker config outside the Webflow Cloud `wrangler.json`.
-- `BASE_URL` and `ASSETS_PREFIX` are used for in-product mounting; the app defaults to root paths when they are unset.
-- Submission data is stored in the user's own Cloudflare D1 (via REST) and R2 (via S3 API). See `lib/d1Client.js` and `lib/r2Client.js` for the access layer.
-- `/api/cron/retry-failed` and `/api/cron/cleanup-blobs` exist but have no scheduler attached on Webflow Cloud. Either call them externally (e.g. GitHub Actions + `CRON_SECRET`) or deploy a separate Cloudflare scheduled Worker that `fetch`es them.
-
-## Environment Variables
-
-### Required Variables
-
-```bash
-# ===== Webhook Configuration =====
-# Shared Airtable webhook URL (configured in .env.local.example)
-WEBHOOK_URL="https://hooks.airtable.com/workflows/v1/genericWebhook/..."
-WEBHOOK_TOKEN="your-webhook-authentication-token"
-
-# ===== Cloud scheduler / admin protection =====
-CRON_SECRET="your-secure-random-string"
-ADMIN_API_TOKEN="your-long-random-admin-token"
-
-# ===== Public upload route =====
-FORM_UPLOADS_PUBLIC_URL="https://webflow-app-form.webflow.io/app-form/api/uploads"
-```
-
-### Optional Variables
-
-```bash
-# ===== Client ID Verification =====
-VALID_CLIENT_IDS="client123,client456,testclient789"
-
-# ===== Airtable (for auto-fill feature) =====
-AIRTABLE_API_KEY="patXXXXXXXXXXXXXX"
-
-# ===== Autofill Authorization =====
-# Use a dedicated secret when possible. ADMIN_API_TOKEN is used as fallback.
-AUTOFILL_TOKEN_SECRET="your-long-random-secret"
-
-# ===== Client-side Feature Flags =====
-NEXT_PUBLIC_UPDATE_TOGGLES_ENABLED="true"
-NEXT_PUBLIC_AUTOFILL_UPDATE_ENABLED="true"
-```
-
-### Backfill script
-
-Once both the source app and the Webflow Cloud target are live, run the one-time migration like this:
-
-```bash
-SOURCE_APP_URL="https://old-app.example.com" \
-SOURCE_ADMIN_API_TOKEN="..." \
-TARGET_APP_URL="https://webflow-app-form.webflow.io/app-form" \
-TARGET_ADMIN_API_TOKEN="..." \
-npm run backfill:webflow-cloud
-```
-
-The import endpoint is idempotent by submission ID, so rerunning the script skips rows already inserted into D1.
-
-## Database Setup
-
-### Schema Overview
-
-The `submissions` table tracks all form submissions with the following key fields:
-
-| Field | Type | Description |
-|-------|------|-------------|
-| `id` | UUID | Primary key (auto-generated) |
-| `submission_type` | VARCHAR | "New" or "Update" |
-| `app_name` | VARCHAR | Application name |
-| `client_id` | VARCHAR | Client ID for verification |
-| `creator_email` | VARCHAR | Submitter email |
-| `form_data` | JSONB | Complete form data |
-| `blob_urls` | JSONB | Array of file URLs |
-| `status` | VARCHAR | processing → pending → webhook_success/webhook_failed |
-| `airtable_submission_id` | VARCHAR | ID sent to Airtable |
-| `error_message` | TEXT | Error details if failed |
-| `retry_count` | INTEGER | Number of retry attempts (max 3) |
-| `created_at` | TIMESTAMP | Submission time |
-| `webhook_sent_at` | TIMESTAMP | Last webhook attempt |
-| `blobs_cleaned_at` | TIMESTAMP | File cleanup time |
-
-### Submission Lifecycle
-
-1. **processing** - Initial state, files being uploaded to Vercel Blob
-2. **pending** - Files uploaded, ready to send to webhook
-3. **webhook_success** - Successfully delivered to Airtable
-4. **webhook_failed** - Delivery failed, eligible for retry
-
-### Indexes
-
-Optimized indexes for common queries:
-- `client_id` - Fast lookup by client
-- `creator_email` - Search by submitter
-- `status` - Filter by submission state
-- `app_name` - Search by application
-- Failed submissions retry queue
-- Blob cleanup queue
-
-## API Reference
-
-### Public Endpoints
-
-#### `POST /api/submit-form`
-Submit a new marketplace app form with files.
-
-**Body**: `multipart/form-data` with form fields and files
-
-**Response**:
-```json
-{
-  "success": true,
-  "message": "Form submitted successfully",
-  "submissionId": "uuid",
-  "airtableSubmissionId": "68dbffcba545b...",
-  "filesUploaded": 6
-}
-```
-
-#### `POST /api/verify-client-id`
-Verify whether a client ID is valid for the selected submission type.
-
-For `submissionType="Update"`, successful responses can include a short-lived `autofillToken` used by the Airtable autofill endpoint.
-
-**Response**:
-```json
-{
-  "clientIdExists": true,
-  "autofillToken": "eyJjbGllbnRJZCI6Ii4uLiJ9.signature",
-  "message": "Client ID check completed"
-}
-```
-
-#### `GET /api/airtable/get-app?clientId=xxx`
-Get existing app data for auto-fill (Update submissions).
-
-- `clientId` must be a valid 64-character hexadecimal string
-- Requires an `x-autofill-token` header minted by `POST /api/verify-client-id`
-- Response is limited to the Airtable fields used by the update autofill flow
-
-**Response**:
-```json
-{
-  "success": true,
-  "app": {
-    "id": "recXXX",
-    "fields": { ... },
-    "createdTime": "2025-01-01T00:00:00.000Z"
-  }
-}
-```
-
-### Internal/Admin Endpoints
-
-#### `GET /api/submissions/search`
-Search submissions with filters.
-
-**Query Parameters**:
-- `appName` - Partial match (case-insensitive)
-- `clientId` - Exact match
-- `creatorEmail` - Partial match (case-insensitive)
-- `status` - One of: processing, pending, webhook_success, webhook_failed
-- `startDate` - ISO 8601 date
-- `endDate` - ISO 8601 date
-- `limit` - Max results (default: 50, max: 100)
-- `offset` - Pagination offset
-
-**Example**:
-```bash
-GET /api/submissions/search?status=webhook_failed&startDate=2025-01-01&limit=20
-```
-
-**Response**:
-```json
-{
-  "success": true,
-  "count": 5,
-  "limit": 20,
-  "offset": 0,
-  "filters": { ... },
-  "results": [
-    {
-      "id": "uuid",
-      "submissionType": "New",
-      "appName": "My App",
-      "clientId": "client123",
-      "status": "webhook_failed",
-      "errorMessage": "Webhook failed: ...",
-      "retryCount": 2,
-      "createdAt": "2025-01-01T00:00:00.000Z"
-    }
-  ]
-}
-```
-
-#### `GET /api/submissions/[id]`
-Get detailed information for a single submission.
-
-**Response**: Full submission record including form_data and blob_urls
-
-#### `POST /api/submissions/retry`
-Manually retry a failed submission.
-
-**Body**:
-```json
-{
-  "submissionId": "uuid"
-}
-```
-
-**Response**:
-```json
-{
-  "success": true,
-  "message": "Webhook retry succeeded",
-  "submissionId": "uuid",
-  "retryAttempt": 2
-}
-```
-
-### Cron Endpoints (Protected by CRON_SECRET)
-
-#### `POST /api/cron/retry-failed`
-Automatic retry job for failed submissions.
-
-**Schedule**: Every 15 minutes (`*/15 * * * *`)
-
-**Authorization**: `Bearer ${CRON_SECRET}`
-
-**Process**:
-1. Find submissions with `status=webhook_failed`
-2. Filter for `retry_count < 3`
-3. Skip submissions retried in last 15 minutes
-4. Attempt webhook delivery
-5. Update status and retry count
-
-#### `POST /api/cron/cleanup-blobs`
-Automatic blob file cleanup job.
-
-**Schedule**: Every 6 hours (`0 */6 * * *`)
-
-**Authorization**: `Bearer ${CRON_SECRET}`
-
-**Process**:
-1. Find submissions with `status=webhook_success`
-2. Filter for `created_at > 24 hours ago`
-3. Filter for `blobs_cleaned_at IS NULL`
-4. Delete blob files from Vercel Blob storage
-5. Update `blobs_cleaned_at` timestamp
-
-## Error Handling & Retry System
-
-### Automatic Retry
-
-When webhook delivery fails, the submission is marked as `webhook_failed` and **blob files are preserved** for retry attempts.
-
-**Retry Schedule**:
-- Cron runs every 15 minutes
-- Maximum 3 retry attempts per submission
-- Exponential backoff (15 min delay between attempts)
-- After 3 failed attempts, manual review required
-
-**Why Automatic Retry?**
-- Network transience: Temporary network issues
-- Airtable rate limits: API throttling
-- Service outages: Brief downtime
-
-### Manual Retry
-
-Support team can manually retry failed submissions via:
-
-```bash
-POST /api/submissions/retry
-{
-  "submissionId": "uuid"
-}
-```
-
-**Use cases**:
-- Exceeded max automatic retries (3)
-- Need immediate retry (don't wait for cron)
-- Testing after fixing webhook configuration
-
-### Error Tracking
-
-All errors are stored in the database:
-- `error_message` - Full error description
-- `retry_count` - Number of attempts made
-- `webhook_sent_at` - Timestamp of last attempt
-- `status` - Current state
-
-## File Storage & Lifecycle
-
-### Upload Process
-
-1. User submits form with files (avatar + up to 5 screenshots)
-2. Files uploaded to Vercel Blob with public access
-3. Blob URLs stored in database `blob_urls` field
-4. URLs included in webhook payload to Airtable
-5. Airtable downloads files from blob URLs
-
-### Retention Policy
-
-**Successful submissions**:
-- Blobs kept for 24 hours after webhook success
-- Gives Airtable time to download files
-- Automatic cleanup via cron job
-
-**Failed submissions**:
-- Blobs preserved indefinitely
-- Required for retry attempts
-- Only cleaned up after manual intervention
-
-### Blob Cleanup Cron
-
-Runs every 6 hours, processes up to 100 submissions:
-
-```javascript
-WHERE status = 'webhook_success'
-  AND created_at < NOW() - INTERVAL '24 hours'
-  AND blobs_cleaned_at IS NULL
-```
-
-## Cron Jobs
-
-Configured in `vercel.json`:
-
-```json
-{
-  "crons": [
-    {
-      "path": "/api/cron/retry-failed",
-      "schedule": "*/15 * * * *"
-    },
-    {
-      "path": "/api/cron/cleanup-blobs",
-      "schedule": "0 */6 * * *"
-    }
-  ]
-}
-```
-
-### Security
-
-All cron endpoints require `CRON_SECRET` in Authorization header:
-
-```
-Authorization: Bearer ${CRON_SECRET}
-```
-
-Vercel automatically includes this header for scheduled cron jobs.
-
-## Monitoring & Analytics
-
-### Alert Rules
-
-Configured in `.monitoring/alert_rules.json`:
-
-**High Failure Rate**:
-- Metric: `failure_rate > 0.2` (20%)
-- Time Window: 60 minutes
-- Severity: High
-- Cooldown: 30 minutes
-
-**Slow Execution**:
-- Metric: `duration > 300000ms` (5 minutes)
-- Time Window: 30 minutes
-- Severity: Medium
-- Cooldown: 15 minutes
-
-### Analytics Events
-
-Tracked via Vercel Analytics:
-
-| Event | Trigger | Metadata |
-|-------|---------|----------|
-| `Webhook Delivered` | Successful webhook | submission type, files count |
-| `Webhook Failed` | Failed webhook | submission type, error message |
-| `Webhook Retry Succeeded` | Successful retry | retry attempt number |
-| `Webhook Retry Failed` | Failed retry | retry attempt, error |
-| `Webhook Auto-Retry Succeeded` | Cron retry success | retry attempt |
-| `Webhook Auto-Retry Failed` | Cron retry failure | retry attempt, needs manual review |
-| `Blobs Cleaned Up` | Blob deletion | blobs deleted count |
+The iframe hosts on developers.webflow.com load the deployed version. For UI
+work locally, open http://localhost:3000 directly (bypasses the iframe
+wrapper). The form detects whether it's in an iframe and skips the parent
+postMessage branches when it isn't.
 
 ## Deployment
 
-### Deploy to Vercel
+Webflow Cloud deploys on push to `main`:
+
+1. Push to `origin/main`.
+2. Webflow Cloud detects the commit via its GitHub integration.
+3. Webflow Cloud runs `next build && opennextjs-cloudflare build`.
+4. The built worker serves from `https://webflow-app-form.webflow.io/app-form`.
+
+No manual `webflow cloud deploy` needed. For rollback, use the
+**Deployments** tab in the Webflow Cloud dashboard — every build lists a
+"Promote to live" action.
+
+### Backing services (done once per environment)
+
+This app assumes two Cloudflare resources exist in the target account:
+
+- A D1 database (any name; we use `wf-bl-app-form-cloud`)
+- An R2 bucket (any name; we use `webflow-app-form-uploads`)
+
+Schema for D1:
 
 ```bash
-# Install Vercel CLI
-npm i -g vercel
-
-# Build and deploy
-npm run build
-vercel --prod
+CLOUDFLARE_ACCOUNT_ID=<your-account-id> \
+  npx wrangler d1 execute <db-name> --remote \
+  --file=scripts/migrations/0001_create_submissions.sql
 ```
 
-### Required Vercel Integrations
+API tokens needed (create via Cloudflare dashboard):
 
-1. **Vercel Postgres** - Database storage
-   - Create from Vercel dashboard
-   - Automatically populates DATABASE_URL and related vars
+- **`CF_API_TOKEN`** — user API token, scope `Account → D1 → Edit`.
+- **R2 Account API token** — `Object Read & Write` scoped to the bucket.
+  This gives you an Access Key ID and Secret Access Key.
 
-2. **Vercel Blob** - File storage
-   - Create from Vercel dashboard
-   - Automatically populates BLOB_READ_WRITE_TOKEN
+Those values go into the Webflow Cloud **Environment variables** tab.
 
-3. **Vercel Cron** - Scheduled jobs
-   - Automatically configured from vercel.json
-   - Requires CRON_SECRET environment variable
+## Environment variables
 
-### Post-Deployment
+Production values live in the Webflow Cloud dashboard. `.env.local.example`
+is the source of truth for local dev.
 
-1. Run database initialization script via Vercel dashboard
-2. Configure environment variables
-3. Test form submission
-4. Verify cron jobs are running (check Vercel logs)
-5. Test retry mechanism with a failed submission
+### Required at runtime
+
+```bash
+# Cloudflare D1 (HTTP REST API)
+CF_ACCOUNT_ID=<cloudflare-account-id>
+CF_D1_DATABASE_ID=<d1-database-uuid>
+CF_API_TOKEN=<token-with-D1-Edit-scope>          # secret
+
+# Cloudflare R2 (S3 API via aws4fetch)
+CF_R2_BUCKET=<bucket-name>
+CF_R2_ACCESS_KEY_ID=<r2-access-key-id>           # secret
+CF_R2_SECRET_ACCESS_KEY=<r2-secret-access-key>   # secret
+# CF_R2_ACCOUNT_ID is optional; falls back to CF_ACCOUNT_ID if unset.
+
+# Public URL the uploads route serves blobs under
+FORM_UPLOADS_PUBLIC_URL=https://webflow-app-form.webflow.io/app-form/api/uploads
+
+# Admin + webhook secrets
+ADMIN_API_TOKEN=<long-random-string>             # secret
+WEBHOOK_URL=https://hooks.airtable.com/workflows/v1/genericWebhook/...  # secret
+CRON_SECRET=<long-random-string>                 # secret
+
+# Airtable autofill (only needed if Update flow is enabled)
+AIRTABLE_API_KEY=pat...                          # secret
+AUTOFILL_TOKEN_SECRET=<long-random-string>       # secret (see note below)
+```
+
+> **Note on `AUTOFILL_TOKEN_SECRET`.** If unset, the autofill HMAC falls back
+> to `ADMIN_API_TOKEN`. That works but is flagged in `SECURITY_AUDIT.md` —
+> set a distinct secret so rotating one doesn't affect the other.
+
+### Optional / feature-gated
+
+```bash
+# Client ID allow-list used when the upstream verification endpoint is down.
+VALID_CLIENT_IDS=client123,client456
+
+# Enables the Update submission toggles and autofill-on-verify.
+NEXT_PUBLIC_UPDATE_TOGGLES_ENABLED=true
+NEXT_PUBLIC_AUTOFILL_UPDATE_ENABLED=true
+```
+
+### GitHub repository secrets
+
+The two cron workflows require `CRON_SECRET` to be set as a repo secret:
+`Settings → Secrets and variables → Actions → New repository secret`. Use the
+same value as in Webflow Cloud.
+
+## API reference
+
+### Public
+
+| Method & path                           | Notes |
+|-----------------------------------------|-------|
+| `POST /api/submit-form`                 | Multipart form data. Returns `{ success, submissionId, airtableSubmissionId, filesUploaded }`. |
+| `POST /api/verify-client-id`            | Body: `{ clientId, submissionType }`. Returns `{ clientIdExists, autofillToken? }`. |
+| `GET  /api/uploads/[...key]`            | Serves R2 objects publicly. |
+| `GET  /api/airtable/get-app?clientId=…` | Requires `x-autofill-token` header from `/api/verify-client-id`. Returns allowlisted Airtable fields. |
+
+### Admin (Bearer `ADMIN_API_TOKEN`)
+
+| Method & path                      | Notes |
+|------------------------------------|-------|
+| `GET  /api/submissions/search`     | Filters: `appName`, `clientId`, `creatorEmail`, `status`, `startDate`, `endDate`, `limit`, `offset`. |
+| `GET  /api/submissions/[id]`       | Full submission including `form_data` and `blob_urls`. |
+| `POST /api/submissions/retry`      | Body: `{ submissionId }`. |
+| `POST /api/submissions/import`     | Idempotent by submission ID; used by the backfill script. |
+
+### Cron (Bearer `CRON_SECRET`)
+
+| Method & path                    | Schedule         | Process |
+|----------------------------------|------------------|---------|
+| `POST /api/cron/retry-failed`    | every 15 min     | Resend failed webhooks, max 3 attempts per row. |
+| `POST /api/cron/cleanup-blobs`   | every 6 h        | Delete R2 objects for successful submissions older than 24 h. |
+
+Both endpoints are invoked from GitHub Actions workflows under
+`.github/workflows/`. Nothing inside Webflow Cloud runs these on a schedule.
+
+## Testing
+
+Vitest covers the pure-function surface where regressions hurt most:
+
+```bash
+npm test            # single run
+npm run test:watch  # watch mode
+```
+
+Current coverage (57 tests):
+
+- `lib/submissionPayload.test.js` — Airtable payload mapping, New vs Update
+  branching, blob URL slot placement, retry metadata
+- `lib/marketplaceCategories.test.js` — normalization, validation, invariants
+- `lib/constantTimeEqual.test.js` — auth primitive edge cases
+- `lib/wizardSections.test.js` — `computeSectionStatus`, section shape
+  invariants
+- `lib/r2Client.test.js` — `hasR2Config` across fallback, explicit, and
+  missing-var cases
+
+`lib/db.js` and `lib/blobStore.js` are intentionally not covered here — they
+need `fetch` mocks and live integration rather than unit tests.
 
 ## Security
 
-### Security Best Practices
+See **`SECURITY_AUDIT.md`** for a walk-through of the auth layer (cron,
+admin, autofill) and a watchlist of items to improve:
 
-✅ **Environment Variables**: All secrets stored in environment variables
-✅ **Cron Protection**: CRON_SECRET required for scheduled endpoints
-✅ **HTTPS**: All blob URLs use HTTPS
-✅ **CSP Headers**: Content Security Policy configured in vercel.json
-✅ **File Size Limits**: 10MB max file upload
-✅ **Input Validation**: Form validation on client and server
-⚠️ **API Authentication**: Search/retry endpoints currently unprotected (internal use only)
+- No rate limiting on public endpoints
+- `/api/verify-client-id` leaks client-ID existence to anonymous callers
+- `AUTOFILL_TOKEN_SECRET` should be distinct from `ADMIN_API_TOKEN`
 
-### Recommended Improvements
+Nothing in the watchlist blocks production.
 
-- [ ] Add authentication to admin endpoints (`/api/submissions/*`)
-- [ ] Implement rate limiting for public endpoints
-- [ ] Add CORS restrictions for production
-- [ ] Rotate CRON_SECRET regularly
-- [ ] Add webhook signature verification
-
-## Embedding in Webflow
-
-### Replace Original Form (Line 6952-12164)
-
-Replace the existing form section with this iframe:
-
-```html
-<div class="col col-lg-6 col-lg-offset-2 col-md-offset-0 col-md-8 col-sm-12">
-    <iframe
-        id="marketplace-form-app"
-        src="https://webflow-form-86kiq5lhw-createsomething.vercel.app"
-        width="100%"
-        height="2000"
-        frameborder="0"
-        style="border: none; overflow: hidden;"
-        title="Marketplace App Submission Form">
-    </iframe>
-</div>
-```
-
-### Complete Integration Script (Recommended)
-
-Add this script to your Webflow page for style inheritance and auto-resize:
-
-```html
-<script>
-// Complete Webflow integration with auto-resize and style inheritance
-(function() {
-    const iframe = document.getElementById('marketplace-form-app');
-    if (!iframe) return;
-
-    // Style inheritance
-    function sendStyles() {
-        if (!iframe.contentWindow) return;
-
-        const bodyStyle = window.getComputedStyle(document.body);
-        const rootStyle = window.getComputedStyle(document.documentElement);
-
-        iframe.contentWindow.postMessage({
-            type: 'PARENT_STYLES',
-            styles: {
-                fontFamily: bodyStyle.fontFamily,
-                fontSize: bodyStyle.fontSize,
-                color: bodyStyle.color,
-                backgroundColor: bodyStyle.backgroundColor,
-                lineHeight: bodyStyle.lineHeight
-            }
-        }, '*');
-    }
-
-    // Auto-resize iframe
-    function resizeIframe(height) {
-        iframe.style.height = height + 'px';
-    }
-
-    // Message handling
-    window.addEventListener('message', function(event) {
-        if (event.data.type === 'REQUEST_STYLES') {
-            sendStyles();
-        } else if (event.data.type === 'RESIZE_IFRAME') {
-            resizeIframe(event.data.height);
-        } else if (event.data.type === 'FORM_SUBMITTED') {
-            console.log('Form submitted:', event.data.data);
-            // Add your success handling here
-        }
-    });
-
-    // Initialize on load
-    iframe.addEventListener('load', function() {
-        setTimeout(sendStyles, 500);
-    });
-
-    // Re-send styles on window resize (responsive changes)
-    let resizeTimeout;
-    window.addEventListener('resize', function() {
-        clearTimeout(resizeTimeout);
-        resizeTimeout = setTimeout(sendStyles, 300);
-    });
-})();
-</script>
-```
-
-## Development
-
-### Available Scripts
-
-```bash
-npm run dev      # Start development server (http://localhost:3000)
-npm run build    # Build for production
-npm run start    # Start production server
-npm run lint     # Run ESLint
-```
-
-### Project Structure
+## Project structure
 
 ```
-├── pages/
-│   ├── index.js                    # Main form UI
+├── app/
 │   └── api/
-│       ├── submit-form.js          # Form submission handler
-│       ├── verify-client-id.js     # Client ID verification
-│       ├── submissions/
-│       │   ├── search.js           # Search submissions
-│       │   ├── [id].js             # Get single submission
-│       │   └── retry.js            # Manual retry
-│       ├── cron/
-│       │   ├── retry-failed.js     # Automatic retry cron
-│       │   └── cleanup-blobs.js    # Blob cleanup cron
-│       └── airtable/
-│           ├── get-app.js          # Auto-fill data
-│           └── test-fields.js      # Field mapping test
+│       ├── submit-form/route.js         # App Router submission handler
+│       └── uploads/[...key]/route.js    # Public blob proxy
+├── components/                          # Form UI components
+│   ├── FormField.js                     # Text + URL validation + counter
+│   ├── TextAreaField.js                 # Textarea + counter
+│   ├── FeaturesList.js                  # Dynamic features
+│   ├── ScreenshotsList.js               # Dynamic screenshots
+│   ├── FileUploadField.js               # Drag-drop avatar upload
+│   ├── FormProgressRail.js              # Step navigation pills
+│   ├── ReviewSummary.js                 # Per-section review cards
+│   ├── CheckboxGroup.js
+│   └── QuillEditor.js
 ├── lib/
-│   └── db.js                       # Database utilities
+│   ├── d1Client.js                      # D1 REST query + first-row helpers
+│   ├── r2Client.js                      # R2 put/get/delete via aws4fetch
+│   ├── db.js                            # Public db.* API backed by d1Client
+│   ├── blobStore.js                     # Public blob API backed by r2Client
+│   ├── cloudflareRuntime.js             # getEnvValue / requireEnvValue
+│   ├── submissionPayload.js             # Airtable webhook payload builder
+│   ├── submitFormRuntime.js             # Submit handler (runtime-agnostic)
+│   ├── marketplaceCategories.js         # Category validation
+│   ├── wizardSections.js                # FORM_SECTIONS, status helpers
+│   ├── formDraft.js                     # Autosave constants + helpers
+│   ├── apiAuth.js                       # Bearer-token helper
+│   ├── autofillToken.js                 # HMAC autofill token
+│   ├── constantTimeEqual.js             # Timing-safe comparison
+│   ├── runtimePaths.js                  # BASE_URL-aware path helpers
+│   ├── analytics.js                     # Vercel analytics wrapper
+│   └── themeSupport.js                  # Parent theme detection
+├── pages/
+│   ├── api/                             # Pages Router for admin + cron
+│   │   ├── submissions/
+│   │   ├── airtable/
+│   │   ├── cron/
+│   │   └── verify-client-id.js
+│   ├── complete-form.js                 # Single-page form UI (3,400 lines)
+│   └── index.js                         # Renders complete-form
 ├── scripts/
-│   └── init-db.sql                 # Database schema
-├── .monitoring/
-│   └── alert_rules.json            # Monitoring configuration
-├── vercel.json                     # Vercel config (crons, headers)
-└── .env.local                      # Environment variables (not committed)
+│   ├── migrations/0001_create_submissions.sql
+│   └── backfill-webflow-cloud.mjs       # One-time data migration helper
+├── .github/workflows/
+│   ├── cron-retry-failed.yml            # 15-minute retry trigger
+│   └── cron-cleanup-blobs.yml           # 6-hour cleanup trigger
+├── webflow.json                         # { cloud: { framework: "nextjs" } }
+├── wrangler.json                        # Minimal Wrangler config
+├── vitest.config.mjs
+├── next.config.js                       # basePath, CSP, headers()
+├── vercel.json                          # CSP headers (legacy; not deployed)
+└── SECURITY_AUDIT.md                    # Auth review and watchlist
 ```
 
-### Database Queries
+`custom-worker.ts` used to sit at the root for a standalone Cloudflare deploy
+path. It's been removed since Webflow Cloud ignores `main` in `wrangler.json`
+and runs its own OpenNext pipeline.
 
-```javascript
-// Import database utilities
-import { db } from '../lib/db';
+## Embedding on developers.webflow.com
 
-// Create submission
-const submission = await db.createSubmission({ ... });
+The iframe is embedded as:
 
-// Update submission
-await db.updateSubmission(id, { status: 'webhook_success' });
+```html
+<script src="https://webflow-app-form.webflow.io/app-form/webflow-iframe-styles.js" defer></script>
+<script>
+  (function () {
+    const IFRAME_ID = 'marketplace-form-app';
+    const APP_ORIGIN = 'https://webflow-app-form.webflow.io';
 
-// Get submission
-const submission = await db.getSubmission(id);
+    function getIframe() {
+      return document.getElementById(IFRAME_ID);
+    }
 
-// Search submissions
-const results = await db.searchSubmissions({ status: 'webhook_failed' });
+    // Iframe requests to scroll the parent page to itself (Next/Previous,
+    // pill clicks, step changes). Required for cross-origin because the
+    // iframe can't scroll the parent directly.
+    window.addEventListener('message', function (event) {
+      if (event.origin !== APP_ORIGIN || !event.data) return;
+      if (event.data.type === 'SCROLL_TO_FORM') {
+        const iframe = getIframe();
+        if (iframe) iframe.scrollIntoView({ behavior: 'smooth', block: 'start' });
+      }
+    });
 
-// Get failed submissions for retry
-const failed = await db.getFailedSubmissions(3);
+    // Pass URL-driven feature flags into the iframe.
+    function sendFeatureFlags() {
+      const iframe = getIframe();
+      if (!iframe || !iframe.contentWindow) return;
+      const urlParams = new URLSearchParams(window.location.search);
+      const updateToggles = urlParams.get('updateToggles') === 'true';
+      const autofillUpdate = urlParams.get('autofillUpdate') === 'true';
+      if (updateToggles || autofillUpdate) {
+        iframe.contentWindow.postMessage(
+          { type: 'featureFlag', updateToggles, autofillUpdate },
+          APP_ORIGIN,
+        );
+      }
+    }
 
-// Get submissions ready for blob cleanup
-const toCleanup = await db.getSubmissionsForBlobCleanup();
+    window.addEventListener('DOMContentLoaded', function () {
+      const iframe = getIframe();
+      if (!iframe) return;
+      iframe.addEventListener('load', sendFeatureFlags);
+    });
+  })();
+</script>
 
-// Get statistics
-const stats = await db.getStats(7); // Last 7 days
+<iframe
+  id="marketplace-form-app"
+  src="https://webflow-app-form.webflow.io/app-form/complete-form"
+  title="Marketplace form app"
+  width="100%"
+  height="800"
+  loading="lazy"
+  style="border: 0; display: block">
+</iframe>
 ```
 
-### Testing Cron Jobs Locally
+The `SCROLL_TO_FORM` listener is not optional — step navigation inside the
+iframe depends on it to keep the form visible on the parent page.
 
-Cron jobs require `CRON_SECRET` in Authorization header:
+## One-time data migration (only if needed)
+
+If you're moving from an existing form deployment, the backfill script
+reads submissions from the source app's admin API and writes them into the
+new D1 via `/api/submissions/import` (idempotent by submission ID):
 
 ```bash
-# Test retry-failed cron
-curl -X POST http://localhost:3000/api/cron/retry-failed \
-  -H "Authorization: Bearer ${CRON_SECRET}"
-
-# Test cleanup-blobs cron
-curl -X POST http://localhost:3000/api/cron/cleanup-blobs \
-  -H "Authorization: Bearer ${CRON_SECRET}"
+SOURCE_APP_URL=https://old-app.example.com \
+SOURCE_ADMIN_API_TOKEN=... \
+TARGET_APP_URL=https://webflow-app-form.webflow.io/app-form \
+TARGET_ADMIN_API_TOKEN=... \
+npm run backfill:webflow-cloud
 ```
 
-## Customization
-
-### Modify Webhook Data Structure
-Edit `pages/api/submit-form.js` to change how data is structured before sending to Airtable.
-
-### Add/Remove Form Fields
-Edit `pages/index.js` to add or remove form fields while maintaining validation patterns.
-
-### Update Retry Logic
-Edit `pages/api/cron/retry-failed.js` to adjust retry attempts, backoff timing, or conditions.
-
-### Change Blob Retention
-Edit `pages/api/cron/cleanup-blobs.js` to adjust the 24-hour retention window.
-
-### Styling
-The form inherits your Webflow styles when embedded. You can also customize styles in the `<style jsx>` section of `pages/index.js`.
-
-## Benefits
-
-1. **Reliability**: Automatic retry ensures no submissions are lost
-2. **Observability**: Full audit trail of all submissions and attempts
-3. **Cost Efficiency**: Automatic blob cleanup reduces storage costs
-4. **Scalability**: Database-backed with optimized indexes
-5. **Maintainability**: Separation of concerns with dedicated API endpoints
-6. **Error Recovery**: Detailed error tracking and manual retry capability
-7. **Production-Ready**: Monitoring, alerts, and analytics built-in
-
-## Support
-
-For issues, questions, or feature requests:
-- Check Vercel logs for runtime errors
-- Query database for submission status
-- Review analytics events for patterns
-- Use search API to find specific submissions
-- Manual retry for critical failures
-
----
-
-**Version**: 1.0.0
-**Last Updated**: 2025-11-20
+This is a one-shot utility; it does not run as part of any deploy.
