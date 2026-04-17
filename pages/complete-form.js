@@ -19,130 +19,23 @@ import {
   detectClientTheme,
   inferThemeFromParentStyles
 } from '../lib/themeSupport';
+import {
+  FORM_SECTIONS,
+  REVIEW_SECTIONS,
+  WIZARD_STEP_COUNT,
+  computeSectionStatus,
+  hasMeaningfulFormValue,
+} from '../lib/wizardSections';
+import {
+  DRAFT_DEBOUNCE_MS,
+  DRAFT_MAX_AGE_MS,
+  DRAFT_STORAGE_KEY,
+  VIEW_MODE_STORAGE_KEY,
+  formatDraftAge,
+  serializableFormData,
+} from '../lib/formDraft';
 
 const QuillEditor = dynamic(() => import('../components/QuillEditor'), { ssr: false });
-
-const DRAFT_STORAGE_KEY = 'wf-app-form-draft';
-const DRAFT_MAX_AGE_MS = 24 * 60 * 60 * 1000;
-const DRAFT_DEBOUNCE_MS = 1000;
-const DRAFT_EXCLUDED_FIELDS = ['appAvatarImage', 'appScreenshots'];
-
-function serializableFormData(formData) {
-  const copy = { ...formData };
-  for (const field of DRAFT_EXCLUDED_FIELDS) {
-    delete copy[field];
-  }
-  return copy;
-}
-
-function hasMeaningfulFormValue(value) {
-  if (typeof value === 'string') {
-    return value.trim().length > 0;
-  }
-  if (Array.isArray(value)) {
-    return value.some((entry) => hasMeaningfulFormValue(entry));
-  }
-  if (typeof value === 'boolean') {
-    return value;
-  }
-  if (value && typeof value === 'object') {
-    return Object.values(value).some((entry) => hasMeaningfulFormValue(entry));
-  }
-  return false;
-}
-
-function formatDraftAge(savedAt) {
-  const ageMs = Date.now() - savedAt;
-  const minutes = Math.round(ageMs / 60000);
-  if (minutes < 1) {
-    return 'just now';
-  }
-  if (minutes < 60) {
-    return `${minutes} minute${minutes === 1 ? '' : 's'} ago`;
-  }
-  const hours = Math.round(minutes / 60);
-  return `${hours} hour${hours === 1 ? '' : 's'} ago`;
-}
-
-const FORM_SECTIONS = [
-  {
-    id: 'app-info',
-    label: 'App info',
-    fields: [
-      'submissionType',
-      'appName',
-      'clientId',
-      'appCapabilities',
-      'appInstallUrl',
-      'appAvatarImage',
-      'appAvatarAltText',
-      'paymentType',
-      'visibility',
-    ],
-  },
-  {
-    id: 'creator-info',
-    label: 'Creator info',
-    fields: ['creatorName', 'creatorWfAccountEmail', 'creatorContactEmail'],
-  },
-  {
-    id: 'app-details',
-    label: 'App details',
-    fields: [
-      'appCategory',
-      'appPreviewDescription',
-      'appDetailDescription',
-      'appFeaturesOverview',
-      'appWebsiteUrl',
-    ],
-  },
-  {
-    id: 'app-credentials-info',
-    label: 'Credentials',
-    fields: ['appAccessCredentials', 'credentialsTierConfirmation'],
-  },
-  {
-    id: 'support-info',
-    label: 'Support info',
-    fields: [
-      'appDemoVideoUrl',
-      'appPrivacyPolicyUrl',
-      'appSupportEmail',
-      'appSupportUrl',
-      'appTermsUrl',
-    ],
-  },
-  {
-    id: 'acknowledgements',
-    label: 'Agreement',
-    fields: ['agreementAccepted'],
-  },
-  {
-    id: 'review-submission',
-    label: 'Review',
-    fields: [],
-  },
-];
-
-const REVIEW_SECTIONS = FORM_SECTIONS.filter((section) => section.id !== 'review-submission');
-
-function computeSectionStatus({ fields, formData, isFieldRequired, hasError }) {
-  if (hasError) {
-    return 'error';
-  }
-  const required = fields.filter((field) => isFieldRequired(field));
-  if (required.length === 0) {
-    return 'complete';
-  }
-  const filled = required.filter((field) => hasMeaningfulFormValue(formData[field]));
-  if (filled.length === required.length) {
-    return 'complete';
-  }
-  if (filled.length > 0) {
-    return 'partial';
-  }
-  return 'empty';
-}
 const DEFAULT_UPDATE_TOGGLES_ENABLED = process.env.NEXT_PUBLIC_UPDATE_TOGGLES_ENABLED === 'true';
 const DEFAULT_AUTOFILL_UPDATE_ENABLED = process.env.NEXT_PUBLIC_AUTOFILL_UPDATE_ENABLED === 'true';
 function parseScopesField(scopesField) {
@@ -325,9 +218,6 @@ export default function CompleteMarketplaceForm() {
   const [currentStep, setCurrentStep] = useState(0);
   const [viewMode, setViewMode] = useState('wizard');
   const [stepGateMissing, setStepGateMissing] = useState(null);
-
-  const WIZARD_STEP_COUNT = FORM_SECTIONS.length;
-  const VIEW_MODE_STORAGE_KEY = 'wf-app-form-view-mode';
 
   // Restore saved view mode preference on mount
   useEffect(() => {
