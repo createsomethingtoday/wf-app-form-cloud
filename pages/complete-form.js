@@ -3346,33 +3346,11 @@ N/A`}
               </p>
             </div>
           </div>
-          <div
-            style={{
-              fontSize: '0.875rem',
-              color: 'var(--colors--text-secondary, var(--_color---neutral--gray-600, #5a5a5a))',
-              marginBottom: '1rem',
-            }}
-          >
-            Need to change something? Use the{' '}
-            <button
-              type="button"
-              onClick={() => goToStep(0)}
-              style={{
-                background: 'none',
-                border: 'none',
-                padding: 0,
-                margin: 0,
-                font: 'inherit',
-                color: 'var(--colors--primary-accent, var(--_color---primary--webflow-blue, #146ef5))',
-                textDecoration: 'underline',
-                cursor: 'pointer',
-              }}
-            >
-              pills at the top of the form
-            </button>{' '}
-            to jump back to any section.
-          </div>
-          <ReviewSummary sections={REVIEW_SECTIONS} formData={formData} />
+          <ReviewSummary
+            sections={REVIEW_SECTIONS}
+            formData={formData}
+            onEdit={(sectionIndex) => goToStep(sectionIndex)}
+          />
         </div>
 
         {/* Wizard navigation + Submit */}
