@@ -5,6 +5,7 @@ import { RotateCcw, TriangleAlert, X } from 'lucide-react';
 import FeaturesList from '../components/FeaturesList';
 import FormField from '../components/FormField';
 import FormProgressRail from '../components/FormProgressRail';
+import ScreenshotsList from '../components/ScreenshotsList';
 import TextAreaField from '../components/TextAreaField';
 import CheckboxGroup from '../components/CheckboxGroup';
 import {
@@ -1310,7 +1311,8 @@ export default function CompleteMarketplaceForm() {
     });
 
     // Validate minimum screenshots (4 recommended, only for New submissions)
-    const screenshotCount = screenshotFileRefs.current.filter(ref => ref?.files?.[0]).length;
+    const screenshotFiles = (formData.appScreenshots || []).filter(Boolean);
+    const screenshotCount = screenshotFiles.length;
     if (formData.submissionType !== 'Update' && screenshotCount < 4) {
       setValidationState(prev => ({
         ...prev,
@@ -1330,10 +1332,8 @@ export default function CompleteMarketplaceForm() {
       totalFileSize += avatarFileRef.current.files[0].size;
     }
 
-    screenshotFileRefs.current.forEach((ref) => {
-      if (ref?.files?.[0]) {
-        totalFileSize += ref.files[0].size;
-      }
+    screenshotFiles.forEach((file) => {
+      totalFileSize += file.size;
     });
 
     if (totalFileSize > maxTotalSize) {
@@ -1356,17 +1356,12 @@ export default function CompleteMarketplaceForm() {
 
     // Add screenshot files and their alt texts
     const consolidatedAltTexts = [];
-    screenshotFileRefs.current.forEach((ref, index) => {
-      if (ref?.files?.[0]) {
-        formDataToSubmit.append('screenshots', ref.files[0]);
-        // Include alt text for this screenshot
-        const altText = finalFormData.appScreenshotAltTexts[index] || '';
-        formDataToSubmit.append(`screenshotAltText${index}`, altText);
-
-        // Add to consolidated list if not empty
-        if (altText) {
-          consolidatedAltTexts.push(`${index + 1}. ${altText}`);
-        }
+    screenshotFiles.forEach((file, index) => {
+      formDataToSubmit.append('screenshots', file);
+      const altText = finalFormData.appScreenshotAltTexts[index] || '';
+      formDataToSubmit.append(`screenshotAltText${index}`, altText);
+      if (altText) {
+        consolidatedAltTexts.push(`${index + 1}. ${altText}`);
       }
     });
 
@@ -2924,120 +2919,14 @@ export default function CompleteMarketplaceForm() {
               </div>
             )}
 
-            {[1, 2, 3, 4, 5].map(index => (
-              <div key={index} className="input-group">
-                <div id={`app-screenshot-${index}`} className="form-file_upload w-file-upload">
-                  <div className="u-w-100 w-file-upload-default" style={{display: formData.appScreenshots[index-1] ? 'none' : 'block'}}>
-                    <input
-                      className="w-file-upload-input"
-                      accept=".bmp, .dng, .eps, .gif, .jpg, .jpeg, .png, .ps, .raw, .svg, .tga, .tif, .tiff"
-                      name={`App-Screenshot-${index}`}
-                      data-name={`App Screenshot ${index}`}
-                      aria-hidden="true"
-                      type="file"
-                      id={`App-Screenshot-${index}`}
-                      tabIndex="-1"
-                      ref={el => screenshotFileRefs.current[index-1] = el}
-                      onChange={(e) => handleFileUpload('appScreenshots', e.target.files[0], index-1)}
-                      style={{height: '69.2031px', width: '1px'}}
-                    />
-                    <label
-                      htmlFor={`App-Screenshot-${index}`}
-                      role="button"
-                      tabIndex="0"
-                      className="form-file_upload-button w-file-upload-label"
-                      onKeyDown={(event) => handleActionButtonKeyDown(event, () => triggerScreenshotUpload(index - 1))}
-                    >
-                      <div className="w-inline-block">Upload File</div>
-                    </label>
-                  </div>
-                  <div tabIndex="-1" className="w-file-upload-success" style={{display: formData.appScreenshots[index-1] ? 'block' : 'none'}}>
-                    <div className="w-file-upload-file">
-                      <div className="w-file-upload-file-name">
-                        {formData.appScreenshots[index-1]?.name || 'fileuploaded.jpg'}
-                      </div>
-                      <div
-                        aria-label="Remove file"
-                        role="button"
-                        tabIndex="0"
-                        className="w-file-remove-link"
-                        onClick={() => {
-                          const newScreenshots = [...formData.appScreenshots];
-                          newScreenshots[index-1] = null;
-                          const newAltTexts = [...formData.appScreenshotAltTexts];
-                          newAltTexts[index-1] = '';
-                          setFormData(prev => ({
-                            ...prev,
-                            appScreenshots: newScreenshots,
-                            appScreenshotAltTexts: newAltTexts
-                          }));
-                          // Clear the file input
-                          if (screenshotFileRefs.current[index-1]) {
-                            screenshotFileRefs.current[index-1].value = '';
-                          }
-                        }}
-                        onKeyDown={(event) => handleActionButtonKeyDown(event, () => {
-                          const newScreenshots = [...formData.appScreenshots];
-                          newScreenshots[index-1] = null;
-                          const newAltTexts = [...formData.appScreenshotAltTexts];
-                          newAltTexts[index-1] = '';
-                          setFormData(prev => ({
-                            ...prev,
-                            appScreenshots: newScreenshots,
-                            appScreenshotAltTexts: newAltTexts
-                          }));
-                          if (screenshotFileRefs.current[index-1]) {
-                            screenshotFileRefs.current[index-1].value = '';
-                          }
-                        })}
-                      >
-                        <div className="w-icon-file-upload-remove" aria-hidden="true"></div>
-                      </div>
-                    </div>
-                  </div>
-                </div>
-                <input
-                  className="input u-mt-sm w-input"
-                  maxLength="256"
-                  name={`Alt-Text-Screenshot-${index}`}
-                  data-name={`Alt Text Screenshot ${index}`}
-                  placeholder="Provide alt text for your screenshot"
-                  type="text"
-                  id={`Alt-Text-Screenshot-${index}`}
-                  style={{display: formData.appScreenshots[index-1] ? 'block' : 'none'}}
-                  required={formData.appScreenshots[index-1] ? true : false}
-                  value={formData.appScreenshotAltTexts[index-1] || ''}
-                  onChange={(e) => {
-                    const newAltTexts = [...formData.appScreenshotAltTexts];
-                    newAltTexts[index-1] = e.target.value;
-                    setFormData(prev => ({ ...prev, appScreenshotAltTexts: newAltTexts }));
-                  }}
-                />
-                {/* Screenshot File Error */}
-                {validationState.screenshotFileErrors[index-1] && (
-                  <div className="cc-error_text" style={{
-                    display: 'block',
-                    backgroundColor: '#FEE2E2',
-                    border: '1px solid #EF4444',
-                    borderRadius: '4px',
-                    padding: '0.75rem',
-                    marginTop: '0.5rem'
-                  }}>
-                    <TriangleAlert size={16} style={{ flexShrink: 0, marginRight: '0.5rem', display: 'inline' }} />
-                    {validationState.screenshotFileErrors[index-1]}
-                  </div>
-                )}
-              </div>
-            ))}
-
-            <div className="w-embed">
-              <input
-                type="hidden"
-                id="consolidated-screenshot-alt-texts"
-                name="consolidated-screenshot-alt-texts"
-                value={formData.appScreenshotAltTexts.filter(text => text).map((text, i) => `${i+1}. ${text}`).join('\n')}
-              />
-            </div>
+            <ScreenshotsList
+              screenshots={formData.appScreenshots}
+              altTexts={formData.appScreenshotAltTexts}
+              onScreenshotsChange={(next) => setFormData((prev) => ({ ...prev, appScreenshots: next }))}
+              onAltTextsChange={(next) => setFormData((prev) => ({ ...prev, appScreenshotAltTexts: next }))}
+              errors={validationState.screenshotFileErrors}
+              maxScreenshots={5}
+            />
 
             {/* Screenshots Count Error */}
             {validationState.screenshotsCountError && (
