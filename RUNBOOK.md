@@ -6,10 +6,17 @@ For whoever's on call. Keep this open in a tab when something's on fire.
 
 - **App repo:** https://github.com/createsomethingtoday/wf-app-form-cloud
 - **Production URL:** https://webflow-app-form.webflow.io/app-form
+- **Staging URL:** https://webflow-app-form.webflow.io/app-form-staging
 - **Embedded at:** https://developers.webflow.com/submit
 - **Cloudflare account:** `Create Something` (`9645bd52e640b8a4f40a3a55ff1dd75a`)
-- **D1 database:** `wf-bl-app-form-cloud` (`dff8622b-864e-4475-a4b7-29216881ea9b`)
-- **R2 bucket:** `webflow-app-form-uploads`
+- **Prod D1:** `wf-bl-app-form-cloud` (`dff8622b-864e-4475-a4b7-29216881ea9b`)
+- **Staging D1:** `wf-bl-app-form-cloud-staging` (`f0a87641-ca63-499f-af99-abf57b912f2e`)
+- **Prod R2:** `webflow-app-form-uploads`
+- **Staging R2:** `webflow-app-form-uploads-staging`
+
+Staging setup instructions live in `STAGING_SETUP.md`. The dashboard-only
+portions of standing up staging (Webflow Cloud environment, API tokens,
+env vars) are documented there and not duplicated here.
 
 ## Where things live
 
