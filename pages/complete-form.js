@@ -91,6 +91,58 @@ function parseSupportField(supportField = '') {
   return { supportEmail, supportUrl };
 }
 
+const WIZARD_FIELD_METADATA = {
+  submissionType: { label: 'Submission type', targetId: 'Submission-Type' },
+  appName: { label: 'App name', targetId: 'app-name' },
+  clientId: { label: 'App client ID', targetId: 'client-id' },
+  appCapabilities: { label: 'App capabilities', targetId: 'App-Capabilities' },
+  appInstallUrl: { label: 'App install URL', targetId: 'App-Install-URL' },
+  appAvatarImage: { label: 'App icon image', targetId: 'App-Avatar-Image-2' },
+  appAvatarAltText: { label: 'App icon image alt text', targetId: 'App-Avatar-Alt-Text' },
+  paymentType: { label: 'Payment type', targetId: 'Checkbox-Free' },
+  visibility: { label: 'Marketplace visibility', targetId: 'Checkbox-Public' },
+  appCategory: { label: 'App category', targetId: 'App-Category' },
+  creatorName: { label: 'Creator name', targetId: 'Creator-Name' },
+  creatorWfAccountEmail: { label: 'Webflow account email', targetId: 'Creator-WF-Account-Email' },
+  creatorContactEmail: { label: 'Contact email', targetId: 'Creator-Contact-Email' },
+  appPreviewDescription: { label: 'App preview description', targetId: 'Short-Description' },
+  appDetailDescription: { label: 'App detail description', targetId: 'Long-Description' },
+  appFeaturesOverview: { label: 'Features overview', targetId: 'Feature-1' },
+  appWebsiteUrl: { label: 'App website URL', targetId: 'Website-URL-2' },
+  appAccessCredentials: { label: 'App access credentials', targetId: 'app-access-credentials' },
+  credentialsTierConfirmation: { label: 'Credentials tier confirmation', targetId: 'credentials-tier-confirmation' },
+  appDemoVideoUrl: { label: 'Review team demo video URL', targetId: 'Demo-Video-URL' },
+  appPrivacyPolicyUrl: { label: 'Privacy policy URL', targetId: 'Privacy-Policy-URL-2' },
+  appTermsUrl: { label: 'Terms and conditions URL', targetId: 'terms-conditions-url' },
+  agreementAccepted: { label: 'Marketplace agreement confirmation', targetId: 'Checkbox-Agree-To-Webflow-Policies-And-Terms' },
+};
+
+function getWizardFieldLabel(fieldName) {
+  return WIZARD_FIELD_METADATA[fieldName]?.label || fieldName;
+}
+
+function getWizardFieldTarget(fieldName) {
+  const targetId = WIZARD_FIELD_METADATA[fieldName]?.targetId;
+  return targetId ? document.getElementById(targetId) : null;
+}
+
+function formatStepGateMessage(missingFields) {
+  if (missingFields.length === 0) {
+    return '';
+  }
+
+  if (missingFields.length === 1) {
+    return `${getWizardFieldLabel(missingFields[0])} is required before continuing.`;
+  }
+
+  const labels = missingFields.slice(0, 3).map(getWizardFieldLabel);
+  const remainder = missingFields.length - labels.length;
+  const summary = labels.join(', ');
+  return remainder > 0
+    ? `Complete the remaining required fields before continuing: ${summary}, and ${remainder} more.`
+    : `Complete the remaining required fields before continuing: ${summary}.`;
+}
+
 export default function CompleteMarketplaceForm() {
   // Feature flag: Update flow toggles
   const [updateTogglesEnabled, setUpdateTogglesEnabled] = useState(DEFAULT_UPDATE_TOGGLES_ENABLED);
@@ -320,7 +372,9 @@ export default function CompleteMarketplaceForm() {
     if (viewMode === 'wizard') {
       const missing = getMissingRequiredFieldsForStep(currentStep);
       if (missing.length > 0) {
-        setStepGateMissing({ stepIndex: currentStep, count: missing.length });
+        setStepGateMissing({ stepIndex: currentStep, fields: missing });
+        const firstMissingTarget = getWizardFieldTarget(missing[0]);
+        navigateToErrorElement(firstMissingTarget);
         return;
       }
     }
@@ -348,6 +402,9 @@ export default function CompleteMarketplaceForm() {
     }
     window.requestAnimationFrame(() => {
       element.scrollIntoView({ behavior: 'smooth', block: 'center' });
+      if (typeof element.focus === 'function') {
+        element.focus({ preventScroll: true });
+      }
     });
   };
 
@@ -435,10 +492,15 @@ export default function CompleteMarketplaceForm() {
       return;
     }
 
-    if (missing.length !== stepGateMissing.count) {
+    const previousFields = stepGateMissing.fields || [];
+    const changed =
+      missing.length !== previousFields.length
+      || missing.some((field, index) => field !== previousFields[index]);
+
+    if (changed) {
       setStepGateMissing({
         stepIndex: stepGateMissing.stepIndex,
-        count: missing.length,
+        fields: missing,
       });
     }
   }, [formData, stepGateMissing, validationState.requiredFields]);
@@ -3388,9 +3450,7 @@ N/A`}
           >
             <TriangleAlert size={16} style={{ flexShrink: 0, marginTop: '2px' }} aria-hidden="true" />
             <span>
-              {stepGateMissing.count === 1
-                ? '1 required field is still empty. Fill it in before continuing.'
-                : `${stepGateMissing.count} required fields are still empty. Fill them in before continuing.`}
+              {formatStepGateMessage(stepGateMissing.fields || [])}
             </span>
           </div>
         )}
