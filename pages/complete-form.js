@@ -1,6 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
 import dynamic from 'next/dynamic';
-import { track } from '@vercel/analytics';
 import { RotateCcw, TriangleAlert, X } from 'lucide-react';
 import FeaturesList from '../components/FeaturesList';
 import FormField from '../components/FormField';
@@ -35,6 +34,7 @@ import {
   formatDraftAge,
   serializableFormData,
 } from '../lib/formDraft';
+import { track } from '../lib/clientAnalytics';
 
 const QuillEditor = dynamic(() => import('../components/QuillEditor'), { ssr: false });
 const DEFAULT_UPDATE_TOGGLES_ENABLED = process.env.NEXT_PUBLIC_UPDATE_TOGGLES_ENABLED === 'true';
@@ -2815,7 +2815,7 @@ export default function CompleteMarketplaceForm() {
                 formats={[
                   'header',
                   'bold', 'italic', 'underline', 'link',
-                  'list', 'bullet'
+                  'list'
                 ]}
                 modules={{
                   toolbar: [

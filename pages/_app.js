@@ -1,5 +1,4 @@
 import { useEffect } from 'react';
-import { Analytics } from '@vercel/analytics/react';
 
 // Error handling for common iframe issues
 function MyApp({ Component, pageProps }) {
@@ -23,7 +22,6 @@ function MyApp({ Component, pageProps }) {
   return (
     <>
       <Component {...pageProps} />
-      <Analytics />
     </>
   );
 }
