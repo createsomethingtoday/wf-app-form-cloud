@@ -25,6 +25,7 @@ import {
   WIZARD_STEP_COUNT,
   computeSectionStatus,
   hasMeaningfulFormValue,
+  isFieldRequiredForCurrentForm,
 } from '../lib/wizardSections';
 import {
   DRAFT_DEBOUNCE_MS,
@@ -659,11 +660,7 @@ export default function CompleteMarketplaceForm() {
 
   // Check if field is required based on submission type
   const isFieldRequired = (fieldName) => {
-    if (formData.submissionType === 'Update') {
-      // Client ID, Submission Type, and Agreement are required for updates
-      return ['clientId', 'submissionType', 'agreementAccepted'].includes(fieldName);
-    }
-    return validationState.requiredFields.has(fieldName);
+    return isFieldRequiredForCurrentForm(fieldName, formData, validationState.requiredFields);
   };
 
   // Toggle section for updates
