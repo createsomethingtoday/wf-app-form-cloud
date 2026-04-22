@@ -189,33 +189,6 @@ NEXT_PUBLIC_UPDATE_TOGGLES_ENABLED=true
 NEXT_PUBLIC_AUTOFILL_UPDATE_ENABLED=true
 ```
 
-### Sentry (optional)
-
-Error tracking is fully opt-in. When `SENTRY_DSN` / `NEXT_PUBLIC_SENTRY_DSN`
-are unset, Sentry doesn't initialize and the app runs unchanged.
-
-```bash
-NEXT_PUBLIC_SENTRY_DSN=https://xxx@xxx.ingest.sentry.io/xxx
-SENTRY_DSN=https://xxx@xxx.ingest.sentry.io/xxx
-SENTRY_ENVIRONMENT=production
-NEXT_PUBLIC_SENTRY_ENVIRONMENT=production
-
-# Build-time only — uploads source maps so stack traces are readable.
-SENTRY_ORG=<sentry-org-slug>
-SENTRY_PROJECT=<sentry-project-slug>
-SENTRY_AUTH_TOKEN=<token-with-project:releases-and-project:read>  # secret
-```
-
-Config lives in `sentry.client.config.js`, `sentry.server.config.js`,
-`sentry.edge.config.js`, plus `instrumentation.js` which wires server and
-edge init into Next.js. `next.config.js` is wrapped with `withSentryConfig`
-for source-map upload; the wrap is defensive — if `@sentry/nextjs` fails to
-load or `SENTRY_AUTH_TOKEN` isn't set, the build still succeeds.
-
-Error-only mode for v1: `tracesSampleRate: 0`, `replaysSessionSampleRate: 0`.
-Bump those in the config files if/when we want performance or session
-replay data.
-
 ### GitHub repository secrets
 
 The two cron workflows require `CRON_SECRET` to be set as a repo secret:

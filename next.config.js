@@ -62,30 +62,4 @@ const nextConfig = {
     ]
   }
 }
-
-// Wrap the config with Sentry's build-time integration. Runs no-op when
-// SENTRY_AUTH_TOKEN isn't set (local dev, branch previews), uploads source
-// maps to Sentry when it is set (production builds).
-let finalConfig = nextConfig;
-try {
-  const { withSentryConfig } = require('@sentry/nextjs');
-  finalConfig = withSentryConfig(nextConfig, {
-    silent: !process.env.SENTRY_DEBUG,
-    org: process.env.SENTRY_ORG,
-    project: process.env.SENTRY_PROJECT,
-    // Skip source-map upload when no auth token (local dev, branch builds).
-    authToken: process.env.SENTRY_AUTH_TOKEN,
-    // Hide source maps from the public client bundle.
-    hideSourceMaps: true,
-    // Tree-shake Sentry logger statements.
-    disableLogger: true,
-    // Don't block builds on Sentry config errors.
-    errorHandler: (err) => {
-      console.warn('[sentry] build-time config warning:', err?.message || err);
-    },
-  });
-} catch (err) {
-  console.warn('[sentry] @sentry/nextjs not available at config time:', err?.message || err);
-}
-
-module.exports = finalConfig;
+module.exports = nextConfig;

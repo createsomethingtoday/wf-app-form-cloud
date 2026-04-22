@@ -1,4 +1,5 @@
 import { handleRuntimeSubmit } from '../../../lib/submitFormRuntime';
+import { sanitizeIncomingRequest } from '../../../lib/requestHeaderSanitizer';
 
 function methodNotAllowed() {
   return new Response(JSON.stringify({ message: 'Method not allowed' }), {
@@ -10,7 +11,7 @@ function methodNotAllowed() {
 }
 
 export async function POST(request) {
-  return handleRuntimeSubmit(request);
+  return handleRuntimeSubmit(sanitizeIncomingRequest(request));
 }
 
 export function GET() {

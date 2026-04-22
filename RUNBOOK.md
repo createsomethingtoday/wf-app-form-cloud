@@ -29,7 +29,6 @@ env vars) are documented there and not duplicated here.
 | R2 S3 credentials | `dash.cloudflare.com/<acct>/r2/api-tokens` (different page than above — read carefully) |
 | GitHub repo secrets | Repo → Settings → Secrets and variables → Actions |
 | Cron workflows | `.github/workflows/cron-retry-failed.yml`, `cron-cleanup-blobs.yml` |
-| Sentry | (set up per README; DSN lives in Webflow Cloud env) |
 
 ## Quick health check
 
@@ -170,7 +169,6 @@ Tokens issued with the old secret remain valid for their 10-minute TTL. Safe to 
 
 - `npm run test:r2` — standalone R2 round-trip, same library (`aws4fetch`) as production.
 - `/api/health` — public JSON endpoint, reports D1 and R2 status.
-- Sentry — captures caught errors with stack traces and submission context.
 - Webflow Cloud runtime logs — recent request logs, filterable.
 - `wrangler d1 execute wf-bl-app-form-cloud --remote --command="SELECT * FROM submissions ORDER BY created_at DESC LIMIT 5"` — look at latest submissions.
 

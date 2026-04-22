@@ -423,6 +423,25 @@ export default function CompleteMarketplaceForm() {
     ])
   });
 
+  useEffect(() => {
+    if (!stepGateMissing) {
+      return;
+    }
+
+    const missing = getMissingRequiredFieldsForStep(stepGateMissing.stepIndex);
+    if (missing.length === 0) {
+      setStepGateMissing(null);
+      return;
+    }
+
+    if (missing.length !== stepGateMissing.count) {
+      setStepGateMissing({
+        stepIndex: stepGateMissing.stepIndex,
+        count: missing.length,
+      });
+    }
+  }, [formData, stepGateMissing, validationState.requiredFields]);
+
   // Refs for file inputs
   const quillDetailRef = useRef();
   const avatarFileRef = useRef();
