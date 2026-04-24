@@ -92,6 +92,7 @@ const WIZARD_FIELD_METADATA = {
   appAvatarAltText: { label: 'App icon image alt text', targetId: 'App-Avatar-Alt-Text' },
   paymentType: { label: 'Payment type', targetId: 'Checkbox-Free' },
   visibility: { label: 'Marketplace visibility', targetId: 'Checkbox-Public' },
+  scopeJustification: { label: 'Scope change justification', targetId: 'scope-justification' },
   appCategory: { label: 'App category', targetId: 'App-Category' },
   creatorName: { label: 'Creator name', targetId: 'Creator-Name' },
   creatorWfAccountEmail: { label: 'Webflow account email', targetId: 'Creator-WF-Account-Email' },
@@ -1233,6 +1234,17 @@ export default function CompleteMarketplaceForm() {
     return errors;
   };
 
+  const findFirstMissingWizardStep = () => {
+    for (let stepIndex = 0; stepIndex < WIZARD_STEP_COUNT - 1; stepIndex += 1) {
+      const missing = getMissingRequiredFieldsForStep(stepIndex);
+      if (missing.length > 0) {
+        return { stepIndex, fields: missing };
+      }
+    }
+
+    return null;
+  };
+
   // Handle form submission
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -1248,12 +1260,29 @@ export default function CompleteMarketplaceForm() {
     // Clear all previous inline errors
     setValidationState(prev => ({
       ...prev,
+      errors: {},
       supportError: '',
       featuresError: '',
       screenshotsCountError: '',
       fileSizeError: '',
       submissionError: ''
     }));
+
+    if (viewMode === 'wizard') {
+      const missingStep = findFirstMissingWizardStep();
+      if (missingStep) {
+        const fieldErrors = checkRequiredFields();
+        setValidationState((prev) => ({
+          ...prev,
+          errors: fieldErrors,
+        }));
+        setStepGateMissing(missingStep);
+        const firstMissingTarget = getWizardFieldTarget(missingStep.fields[0]);
+        navigateToErrorElement(firstMissingTarget);
+        setIsSubmitting(false);
+        return;
+      }
+    }
 
     // Validate checkbox groups like original form (only for non-Update submissions)
     if (formData.submissionType !== 'Update') {
@@ -1326,6 +1355,19 @@ export default function CompleteMarketplaceForm() {
       }));
 
       navigateToErrorElement(document.getElementById('Feature-1'));
+      setIsSubmitting(false);
+      return;
+    }
+
+    if (formData.submissionType === 'Update' && scopesChanged() && !scopeJustification.trim()) {
+      setValidationState((prev) => ({
+        ...prev,
+        errors: {
+          ...prev.errors,
+          scopeJustification: 'Please explain the scope or permission change.',
+        },
+      }));
+      navigateToErrorElement(document.getElementById('scope-justification'));
       setIsSubmitting(false);
       return;
     }
@@ -1867,6 +1909,7 @@ export default function CompleteMarketplaceForm() {
           name="wf-form-Marketplace-App-Submission"
           className="form-wrapper"
           onSubmit={handleSubmit}
+          noValidate={viewMode === 'wizard'}
           style={{display: submissionSuccess ? 'none' : 'block'}}
         >
 
@@ -2236,7 +2279,6 @@ export default function CompleteMarketplaceForm() {
               <input
                 type="checkbox"
                 id="ID-Check-Success"
-                required={isFieldRequired('clientId')}
                 className="sr-only"
                 style={{
                   position: 'absolute',
@@ -2433,13 +2475,30 @@ export default function CompleteMarketplaceForm() {
               </div>
               <textarea
                 id="scope-justification"
+                name="Scope-Justification"
                 className="input cc-textarea w-input"
                 value={scopeJustification}
-                onChange={(e) => setScopeJustification(e.target.value)}
+                onChange={(e) => {
+                  setScopeJustification(e.target.value);
+                  if (e.target.value.trim()) {
+                    setValidationState((prev) => ({
+                      ...prev,
+                      errors: {
+                        ...prev.errors,
+                        scopeJustification: undefined,
+                      },
+                    }));
+                  }
+                }}
                 placeholder="Explain the reason for the scope or permission change..."
-                required
+                required={viewMode !== 'wizard'}
                 rows={4}
               />
+              {validationState.errors.scopeJustification && (
+                <div className="validation-error-message" style={{display: 'block'}}>
+                  {validationState.errors.scopeJustification}
+                </div>
+              )}
             </div>
           )}
           </>
@@ -2644,7 +2703,6 @@ export default function CompleteMarketplaceForm() {
             <input
               type="checkbox"
               id="Payment-Validation"
-              required={isFieldRequired('paymentType')}
               className="sr-only"
               checked={formData.paymentType.length > 0}
               onChange={() => {}}
@@ -2731,7 +2789,6 @@ export default function CompleteMarketplaceForm() {
               <input
                 type="checkbox"
                 id="Visibility-Validation"
-                required={isFieldRequired('visibility')}
                 className="sr-only"
                 style={{
                   position: 'absolute',
