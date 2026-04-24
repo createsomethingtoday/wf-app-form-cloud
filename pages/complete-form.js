@@ -34,30 +34,21 @@ import {
   formatDraftAge,
   serializableFormData,
 } from '../lib/formDraft';
+import { appendSubmissionField } from '../lib/submissionFormData';
+import {
+  APP_SCOPE_ACCESS_LABELS,
+  REQUESTABLE_APP_SCOPES,
+  areAppScopesEqual,
+  getAllowedAccessLevels,
+  getAppScopeDefinition,
+  normalizeAppScope,
+  normalizeAppScopes,
+} from '../lib/appScopes';
 import { track } from '../lib/clientAnalytics';
 
 const QuillEditor = dynamic(() => import('../components/QuillEditor'), { ssr: false });
 const DEFAULT_UPDATE_TOGGLES_ENABLED = process.env.NEXT_PUBLIC_UPDATE_TOGGLES_ENABLED === 'true';
 const DEFAULT_AUTOFILL_UPDATE_ENABLED = process.env.NEXT_PUBLIC_AUTOFILL_UPDATE_ENABLED === 'true';
-function parseScopesField(scopesField) {
-  if (Array.isArray(scopesField)) {
-    return scopesField.filter(Boolean);
-  }
-
-  if (typeof scopesField !== 'string') {
-    return [];
-  }
-
-  try {
-    const parsed = JSON.parse(scopesField);
-    return Array.isArray(parsed) ? parsed.filter(Boolean) : [];
-  } catch {
-    return scopesField
-      .split(/\n|,/)
-      .map((scope) => scope.trim())
-      .filter(Boolean);
-  }
-}
 
 function parseFeaturesText(featuresText) {
   if (typeof featuresText !== 'string') {
@@ -415,7 +406,7 @@ export default function CompleteMarketplaceForm() {
     clientId: '',
     appCapabilities: '',
     appInstallUrl: '',
-    appScopes: [], // Array of selected API scopes
+    appScopes: [], // Array of { id, name, access } scope selections
     appAvatarImage: null,
     appAvatarAltText: '',
     paymentType: [], // Array to allow both Free and Paid
@@ -615,7 +606,11 @@ export default function CompleteMarketplaceForm() {
     if (!draftBanner?.data) {
       return;
     }
-    setFormData((prev) => ({ ...prev, ...draftBanner.data }));
+    setFormData((prev) => ({
+      ...prev,
+      ...draftBanner.data,
+      appScopes: normalizeAppScopes(draftBanner.data.appScopes),
+    }));
     if (
       typeof draftBanner.step === 'number'
       && draftBanner.step >= 0
@@ -706,19 +701,42 @@ export default function CompleteMarketplaceForm() {
 
   // Scope handlers
   const handleAddScope = () => {
-    if (selectedScope && !formData.appScopes.includes(selectedScope)) {
-      setFormData(prev => ({ ...prev, appScopes: [...prev.appScopes, selectedScope] }));
-      setSelectedScope('');
+    if (!selectedScope || formData.appScopes.some((scope) => scope.id === selectedScope)) {
+      return;
     }
+
+    const nextScope = normalizeAppScope({ id: selectedScope });
+    if (!nextScope) {
+      return;
+    }
+
+    setFormData((prev) => ({ ...prev, appScopes: [...prev.appScopes, nextScope] }));
+    setSelectedScope('');
   };
 
-  const handleRemoveScope = (scope) => {
-    setFormData(prev => ({ ...prev, appScopes: prev.appScopes.filter(s => s !== scope) }));
+  const handleRemoveScope = (scopeId) => {
+    setFormData((prev) => ({
+      ...prev,
+      appScopes: prev.appScopes.filter((scope) => scope.id !== scopeId),
+    }));
   };
 
-  const scopesChanged = () => {
-    return JSON.stringify([...formData.appScopes].sort()) !== JSON.stringify([...originalScopes].sort());
+  const handleScopeAccessChange = (scopeId, access) => {
+    setFormData((prev) => ({
+      ...prev,
+      appScopes: prev.appScopes.map((scope) => (
+        scope.id === scopeId
+          ? { ...scope, access: normalizeAppScope({ ...scope, access })?.access || scope.access }
+          : scope
+      )),
+    }));
   };
+
+  const scopesChanged = () => !areAppScopesEqual(formData.appScopes, originalScopes);
+
+  const availableScopeOptions = REQUESTABLE_APP_SCOPES.filter(
+    (scope) => !formData.appScopes.some((selected) => selected.id === scope.id)
+  );
 
   // Check if field is required based on submission type
   const isFieldRequired = (fieldName) => {
@@ -897,7 +915,9 @@ export default function CompleteMarketplaceForm() {
         appName: fields['Name'] || '',
         appCapabilities: fields['ℹ️Capabilities (🖥️ only)'] || '',
         appInstallUrl: fields['🔗Install URL (🖥️ only)'] || '',
-        appScopes: parseScopesField(fields['ℹ️Scopes'] || fields['Scopes'] || fields['all-selected-scopes']),
+        appScopes: normalizeAppScopes(
+          fields['all-selected-scopes'] ?? fields['ℹ️Scopes'] ?? fields['Scopes']
+        ),
         appAvatarAltText: fields['App Avatar Alt Text'] || '',
         // Payment type is already an array in Airtable
         paymentType: fields['ℹ️💲Payment Types'] || [],
@@ -1335,6 +1355,10 @@ export default function CompleteMarketplaceForm() {
 
       const originalValue = originalFormData[key];
 
+      if (key === 'appScopes') {
+        return !areAppScopesEqual(currentValue, originalValue);
+      }
+
       // Compare arrays
       if (Array.isArray(currentValue) && Array.isArray(originalValue)) {
         if (currentValue.length !== originalValue.length) return true;
@@ -1356,14 +1380,7 @@ export default function CompleteMarketplaceForm() {
         return;
       }
 
-      if (Array.isArray(value)) {
-        // Handle arrays (like categories, scopes)
-        value.forEach(item => {
-          formDataToSubmit.append(key, item);
-        });
-      } else if (value !== null && value !== undefined) {
-        formDataToSubmit.append(key, value);
-      }
+      appendSubmissionField(formDataToSubmit, key, value);
     });
 
     // Validate minimum screenshots (4 recommended, only for New submissions)
@@ -2310,10 +2327,10 @@ export default function CompleteMarketplaceForm() {
             </label>
             <div className="rich-text-component paragraph-sm">
               <div className="rich-text w-richtext">
-                <p>Select the API scopes your app requires. You can add multiple scopes.</p>
+                <p>Select the API scopes your app requires and choose the minimum access level for each one.</p>
               </div>
             </div>
-            <div style={{ display: 'flex', gap: '0.75rem', alignItems: 'stretch' }}>
+            <div className="scope-builder-row">
               <div className="select-field" style={{ flex: 1 }}>
                 <select
                   id="scope-selector"
@@ -2323,21 +2340,11 @@ export default function CompleteMarketplaceForm() {
                   style={{ marginBottom: 0 }}
                 >
                   <option value="">Select a scope to add...</option>
-                  <option value="app-subscriptions">App Subscriptions</option>
-                  <option value="assets">Assets</option>
-                  <option value="authorized-user">Authorized user</option>
-                  <option value="cms">CMS</option>
-                  <option value="comments">Comments</option>
-                  <option value="components">Components</option>
-                  <option value="custom-code">Custom Code</option>
-                  <option value="ecommerce">Ecommerce</option>
-                  <option value="forms">Forms</option>
-                  <option value="pages">Pages</option>
-                  <option value="sites">Sites</option>
-                  <option value="site-activity">Site activity</option>
-                  <option value="site-config">Site config</option>
-                  <option value="user-accounts">User Accounts</option>
-                  <option value="workspace">Workspace</option>
+                  {availableScopeOptions.map((scope) => (
+                    <option key={scope.id} value={scope.id}>
+                      {scope.name}
+                    </option>
+                  ))}
                 </select>
               </div>
               <button
@@ -2351,22 +2358,64 @@ export default function CompleteMarketplaceForm() {
               </button>
             </div>
 
-            {/* Selected scopes display */}
-            {formData.appScopes.length > 0 && (
-              <div className="scope-chip-list">
-                {formData.appScopes.map(scope => (
-                  <div key={scope} className="scope-chip">
-                    <span>{scope}</span>
-                    <button
-                      type="button"
-                      onClick={() => handleRemoveScope(scope)}
-                      className="scope-chip-remove"
-                      aria-label={`Remove ${scope}`}
-                    >
-                      ×
-                    </button>
-                  </div>
-                ))}
+            {formData.appScopes.length > 0 ? (
+              <div className="scope-card-list">
+                {formData.appScopes.map((scope) => {
+                  const definition = getAppScopeDefinition(scope.id);
+                  const allowedAccess = getAllowedAccessLevels(scope.id);
+                  const selectId = `scope-access-${scope.id}`;
+
+                  return (
+                    <div key={scope.id} className="scope-card">
+                      <div className="scope-card-content">
+                        <div className="scope-card-title-row">
+                          <h3 className="scope-card-title">{scope.name}</h3>
+                        </div>
+                        <p className="scope-card-description">
+                          {definition?.description || 'Imported from Airtable. Verify the access level before submitting.'}
+                        </p>
+                        <button
+                          type="button"
+                          onClick={() => handleRemoveScope(scope.id)}
+                          className="scope-card-remove"
+                          aria-label={`Remove ${scope.name}`}
+                        >
+                          Remove
+                        </button>
+                      </div>
+                      <div className="scope-card-access">
+                        <label htmlFor={selectId} className="scope-access-label">
+                          Access
+                        </label>
+                        {allowedAccess.length > 1 ? (
+                          <div className="select-field">
+                            <select
+                              id={selectId}
+                              className="input cc-select w-select"
+                              value={scope.access}
+                              onChange={(e) => handleScopeAccessChange(scope.id, e.target.value)}
+                              style={{ marginBottom: 0 }}
+                            >
+                              {allowedAccess.map((accessLevel) => (
+                                <option key={accessLevel} value={accessLevel}>
+                                  {APP_SCOPE_ACCESS_LABELS[accessLevel] || accessLevel}
+                                </option>
+                              ))}
+                            </select>
+                          </div>
+                        ) : (
+                          <div className="scope-access-pill">
+                            {APP_SCOPE_ACCESS_LABELS[scope.access] || scope.access}
+                          </div>
+                        )}
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            ) : (
+              <div className="scope-empty-state">
+                No scopes added yet.
               </div>
             )}
           </div>
@@ -2379,7 +2428,7 @@ export default function CompleteMarketplaceForm() {
               </label>
               <div className="rich-text-component paragraph-sm">
                 <div className="rich-text w-richtext">
-                  <p>Please explain why you need to add or remove scopes for this update.</p>
+                  <p>Please explain why you need to add, remove, or change scope access for this update.</p>
                 </div>
               </div>
               <textarea
@@ -2387,7 +2436,7 @@ export default function CompleteMarketplaceForm() {
                 className="input cc-textarea w-input"
                 value={scopeJustification}
                 onChange={(e) => setScopeJustification(e.target.value)}
-                placeholder="Explain the reason for scope changes..."
+                placeholder="Explain the reason for the scope or permission change..."
                 required
                 rows={4}
               />

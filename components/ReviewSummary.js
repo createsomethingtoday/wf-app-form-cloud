@@ -1,4 +1,5 @@
 import { Pencil } from 'lucide-react';
+import { formatAppScopeSummary } from '../lib/appScopes';
 
 const FIELD_LABELS = {
   submissionType: 'Submission type',
@@ -6,6 +7,7 @@ const FIELD_LABELS = {
   clientId: 'Client ID',
   appCapabilities: 'App capabilities',
   appInstallUrl: 'Install URL',
+  appScopes: 'Scopes',
   appAvatarImage: 'App icon',
   appAvatarAltText: 'App icon alt text',
   paymentType: 'Payment type',
@@ -42,6 +44,12 @@ function formatValue(value) {
     const filled = value.filter((entry) => entry !== null && entry !== undefined && entry !== '');
     if (filled.length === 0) {
       return { text: '—', dim: true };
+    }
+    if (filled.every((entry) => entry && typeof entry === 'object' && 'id' in entry && 'access' in entry)) {
+      const joined = filled.map((entry) => formatAppScopeSummary(entry)).filter(Boolean).join(', ');
+      return joined.length > 160
+        ? { text: `${joined.slice(0, 160)}…`, dim: false }
+        : { text: joined, dim: false };
     }
     if (filled.every((entry) => entry && typeof entry === 'object' && 'name' in entry)) {
       return { text: `${filled.length} file${filled.length === 1 ? '' : 's'}`, dim: false };
