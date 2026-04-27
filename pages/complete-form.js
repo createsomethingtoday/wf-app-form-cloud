@@ -1014,6 +1014,20 @@ export default function CompleteMarketplaceForm() {
       return Promise.resolve(false);
     }
 
+    const avatarFile = formData.appAvatarImage;
+    if (
+      avatarFile
+      && file.name === avatarFile.name
+      && file.size === avatarFile.size
+      && file.lastModified === avatarFile.lastModified
+    ) {
+      setScreenshotFileError(
+        index,
+        'This file is already uploaded as the app icon. Choose a product screenshot instead.'
+      );
+      return Promise.resolve(false);
+    }
+
     const MAX_FILENAME_LENGTH = 100;
     if (file.name.length > MAX_FILENAME_LENGTH) {
       setScreenshotFileError(
@@ -1033,35 +1047,9 @@ export default function CompleteMarketplaceForm() {
       return Promise.resolve(false);
     }
 
-    return new Promise((resolve) => {
-      const img = new Image();
-      const objectUrl = URL.createObjectURL(file);
-
-      img.onload = () => {
-        URL.revokeObjectURL(objectUrl);
-
-        if (img.width !== 1280 || img.height !== 846) {
-          setScreenshotFileError(
-            index,
-            `Image dimensions are incorrect. Expected: 1280px by 846px | Actual: ${img.width}px by ${img.height}px. Please resize your image and try again.`
-          );
-          resolve(false);
-          return;
-        }
-
-        setScreenshotFileError(index, '');
-        track('Screenshot Uploaded', { index: index + 1, fileSize: file.size });
-        resolve(true);
-      };
-
-      img.onerror = () => {
-        URL.revokeObjectURL(objectUrl);
-        setScreenshotFileError(index, 'Failed to load image. Please make sure the file is a valid image.');
-        resolve(false);
-      };
-
-      img.src = objectUrl;
-    });
+    setScreenshotFileError(index, '');
+    track('Screenshot Uploaded', { index: index + 1, fileSize: file.size });
+    return Promise.resolve(true);
   };
 
   // Handle file uploads
