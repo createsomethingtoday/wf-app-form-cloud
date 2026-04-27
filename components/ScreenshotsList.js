@@ -177,7 +177,7 @@ export default function ScreenshotsList({
   const atCapacity = items.length >= maxScreenshots;
   const remaining = Math.max(0, maxScreenshots - items.length);
 
-  const handleFiles = (fileList) => {
+  const handleFiles = async (fileList) => {
     const incoming = Array.from(fileList || []);
     if (incoming.length === 0) {
       return;
@@ -187,7 +187,9 @@ export default function ScreenshotsList({
       if (items.length + accepted.length >= maxScreenshots) {
         break;
       }
-      if (onFileValidate && !onFileValidate(file)) {
+      const nextIndex = items.length + accepted.length;
+      const isValid = onFileValidate ? await onFileValidate(file, nextIndex) : true;
+      if (!isValid) {
         continue;
       }
       accepted.push(file);

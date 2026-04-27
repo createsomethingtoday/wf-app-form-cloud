@@ -1001,6 +1001,69 @@ export default function CompleteMarketplaceForm() {
     }
   };
 
+  const setScreenshotFileError = (index, errorMsg) => {
+    setValidationState(prev => {
+      const newErrors = [...prev.screenshotFileErrors];
+      newErrors[index] = errorMsg;
+      return { ...prev, screenshotFileErrors: newErrors };
+    });
+  };
+
+  const validateScreenshotUpload = (file, index) => {
+    if (!file) {
+      return Promise.resolve(false);
+    }
+
+    const MAX_FILENAME_LENGTH = 100;
+    if (file.name.length > MAX_FILENAME_LENGTH) {
+      setScreenshotFileError(
+        index,
+        `Filename is too long (${file.name.length} characters). Maximum is ${MAX_FILENAME_LENGTH} characters. Please rename the file and try again.`
+      );
+      return Promise.resolve(false);
+    }
+
+    const maxFileSize = 2 * 1024 * 1024;
+    if (file.size > maxFileSize) {
+      const sizeMB = (file.size / (1024 * 1024)).toFixed(2);
+      setScreenshotFileError(
+        index,
+        `File "${file.name}" is too large (${sizeMB}MB). Maximum file size is 2MB. Please compress the image and try again.`
+      );
+      return Promise.resolve(false);
+    }
+
+    return new Promise((resolve) => {
+      const img = new Image();
+      const objectUrl = URL.createObjectURL(file);
+
+      img.onload = () => {
+        URL.revokeObjectURL(objectUrl);
+
+        if (img.width !== 1280 || img.height !== 846) {
+          setScreenshotFileError(
+            index,
+            `Image dimensions are incorrect. Expected: 1280px by 846px | Actual: ${img.width}px by ${img.height}px. Please resize your image and try again.`
+          );
+          resolve(false);
+          return;
+        }
+
+        setScreenshotFileError(index, '');
+        track('Screenshot Uploaded', { index: index + 1, fileSize: file.size });
+        resolve(true);
+      };
+
+      img.onerror = () => {
+        URL.revokeObjectURL(objectUrl);
+        setScreenshotFileError(index, 'Failed to load image. Please make sure the file is a valid image.');
+        resolve(false);
+      };
+
+      img.src = objectUrl;
+    });
+  };
+
   // Handle file uploads
   const handleFileUpload = (fieldName, file, index = null) => {
     if (!file) return;
@@ -1264,6 +1327,7 @@ export default function CompleteMarketplaceForm() {
       supportError: '',
       featuresError: '',
       screenshotsCountError: '',
+      screenshotFileErrors: ['', '', '', '', ''],
       fileSizeError: '',
       submissionError: ''
     }));
@@ -1435,6 +1499,31 @@ export default function CompleteMarketplaceForm() {
       }));
 
       navigateToErrorElement(document.querySelector('[id*="Screenshot"]'));
+      setIsSubmitting(false);
+      return;
+    }
+
+    const screenshotAltErrors = ['', '', '', '', ''];
+    let firstMissingScreenshotAltIndex = -1;
+
+    screenshotFiles.forEach((file, index) => {
+      const altText = finalFormData.appScreenshotAltTexts[index] || '';
+      if (!String(altText).trim()) {
+        screenshotAltErrors[index] = `Add alt text for screenshot ${index + 1}.`;
+        if (firstMissingScreenshotAltIndex === -1) {
+          firstMissingScreenshotAltIndex = index;
+        }
+      }
+    });
+
+    if (firstMissingScreenshotAltIndex !== -1) {
+      setValidationState(prev => ({
+        ...prev,
+        screenshotFileErrors: screenshotAltErrors,
+        screenshotsCountError: 'Add alt text for every uploaded screenshot before submitting.'
+      }));
+
+      navigateToErrorElement(document.getElementById(`screenshot-alt-text-${firstMissingScreenshotAltIndex}`));
       setIsSubmitting(false);
       return;
     }
@@ -3100,6 +3189,7 @@ export default function CompleteMarketplaceForm() {
               altTexts={formData.appScreenshotAltTexts}
               onScreenshotsChange={(next) => setFormData((prev) => ({ ...prev, appScreenshots: next }))}
               onAltTextsChange={(next) => setFormData((prev) => ({ ...prev, appScreenshotAltTexts: next }))}
+              onFileValidate={validateScreenshotUpload}
               errors={validationState.screenshotFileErrors}
               maxScreenshots={5}
             />
