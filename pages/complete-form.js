@@ -1507,13 +1507,13 @@ export default function CompleteMarketplaceForm() {
         return;
       }
 
+      const responseText = await response.text();
       let result;
       try {
-        result = await response.json();
+        result = responseText ? JSON.parse(responseText) : {};
       } catch (jsonError) {
-        // If JSON parsing fails, show the raw response
-        const text = await response.text();
-        throw new Error(`Server error: ${response.status} - ${text.substring(0, 100)}`);
+        const fallbackText = responseText || response.statusText || 'Empty response';
+        throw new Error(`Server error: ${response.status} - ${fallbackText.substring(0, 100)}`);
       }
 
       if (response.ok) {
