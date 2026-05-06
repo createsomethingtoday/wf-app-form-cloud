@@ -272,8 +272,8 @@ export default function ScreenshotsList({
       >
         <span>
           {items.length} of {maxScreenshots} screenshots
-          {items.length > 0 && items.length < 4 && ' — 4 recommended'}
-          {items.length === 0 && ' — 4 recommended'}
+          {items.length > 0 && items.length < 4 && ' — 4 required'}
+          {items.length === 0 && ' — 4 required'}
         </span>
       </div>
 

@@ -1478,13 +1478,14 @@ export default function CompleteMarketplaceForm() {
       appendSubmissionField(formDataToSubmit, key, value);
     });
 
-    // Validate minimum screenshots (4 recommended, only for New submissions)
+    // Validate minimum screenshots (4 required, only for New submissions)
     const screenshotFiles = (formData.appScreenshots || []).filter(Boolean);
     const screenshotCount = screenshotFiles.length;
     if (formData.submissionType !== 'Update' && screenshotCount < 4) {
+      const screenshotLabel = screenshotCount === 1 ? 'screenshot' : 'screenshots';
       setValidationState(prev => ({
         ...prev,
-        screenshotsCountError: `We recommend uploading at least 4 screenshots to show key workflows. You currently have ${screenshotCount} screenshot(s).`
+        screenshotsCountError: `At least 4 screenshots are required to show key workflows. You currently have ${screenshotCount} ${screenshotLabel}.`
       }));
 
       navigateToErrorElement(document.querySelector('[id*="Screenshot"]'));
@@ -3100,7 +3101,7 @@ export default function CompleteMarketplaceForm() {
             </label>
             <div data-wf--rich-text--alignment="left-align" className="rich-text-component paragraph-sm">
               <div className="rich-text w-richtext">
-                <p><span>Dimensions: 1280px by 846px <br/>4 screenshots recommended (up to 5 maximum)<br/>Max file size: 2MB per screenshot<br/>Accepted: Highlight the app features with clear visuals</span></p>
+                <p><span>Dimensions: 1280px by 846px <br/>4 screenshots required (up to 5 maximum)<br/>Max file size: 2MB per screenshot<br/>Accepted: Highlight the app features with clear visuals</span></p>
               </div>
             </div>
 
