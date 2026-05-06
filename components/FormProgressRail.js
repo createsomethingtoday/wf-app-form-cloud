@@ -66,6 +66,12 @@ export default function FormProgressRail({ sections, progress, activeId: activeI
   };
 
   const percent = Math.max(0, Math.min(100, Math.round(progress ?? 0)));
+  const hasErrors = sections.some((section) => section.status === 'error');
+  const progressLabel = hasErrors
+    ? 'Needs attention'
+    : percent === 100
+      ? 'Ready to submit'
+      : `${percent}% complete`;
 
   return (
     <div
@@ -94,7 +100,7 @@ export default function FormProgressRail({ sections, progress, activeId: activeI
         }}
       >
         <div style={{ fontWeight: 600, fontSize: '0.875rem' }}>
-          {percent === 100 ? 'Ready to submit' : `${percent}% complete`}
+          {progressLabel}
         </div>
         <div
           style={{
@@ -109,8 +115,9 @@ export default function FormProgressRail({ sections, progress, activeId: activeI
             style={{
               width: `${percent}%`,
               height: '100%',
-              background:
-                percent === 100
+              background: hasErrors
+                ? 'var(--colors--danger, #dc2626)'
+                : percent === 100
                   ? 'var(--colors--success, #15803d)'
                   : 'var(--colors--primary-accent, var(--_color---primary--webflow-blue, #146ef5))',
               transition: 'width 200ms ease',

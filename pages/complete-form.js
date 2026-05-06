@@ -22,6 +22,7 @@ import {
   FORM_SECTIONS,
   REVIEW_SECTIONS,
   WIZARD_STEP_COUNT,
+  buildSectionErrorMap,
   computeSectionStatus,
   hasMeaningfulFormValue,
   isFieldRequiredForCurrentForm,
@@ -2082,16 +2083,7 @@ export default function CompleteMarketplaceForm() {
         )}
 
         {(() => {
-          const sectionErrorMap = {
-            'app-info': Boolean(
-              validationState.avatarFileError
-                || validationState.clientIdError
-                || (validationState.screenshotFileErrors || []).some(Boolean)
-                || validationState.screenshotsCountError
-            ),
-            'app-details': Boolean(validationState.featuresError),
-            'support-info': Boolean(validationState.supportError),
-          };
+          const sectionErrorMap = buildSectionErrorMap(validationState);
           const sectionsWithStatus = FORM_SECTIONS.map((section) => ({
             id: section.id,
             label: section.label,
@@ -3680,7 +3672,7 @@ N/A`}
               className="btn u-mt-sm w-button"
               value={isSubmitting ? "Submitting..." : "Submit"}
               data-wait="Please wait..."
-              disabled={isSubmitting || (formData.clientId && !validationState.clientIdVerified)}
+              disabled={isSubmitting}
               style={{ marginLeft: 'auto' }}
             />
           )}
