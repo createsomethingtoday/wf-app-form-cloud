@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
 import dynamic from 'next/dynamic';
-import { RotateCcw, TriangleAlert, X } from 'lucide-react';
+import { CheckCircle, RotateCcw, TriangleAlert, X } from 'lucide-react';
 import FeaturesList from '../components/FeaturesList';
 import FormField from '../components/FormField';
 import FormProgressRail from '../components/FormProgressRail';
@@ -50,6 +50,7 @@ import { track } from '../lib/clientAnalytics';
 const QuillEditor = dynamic(() => import('../components/QuillEditor'), { ssr: false });
 const DEFAULT_UPDATE_TOGGLES_ENABLED = process.env.NEXT_PUBLIC_UPDATE_TOGGLES_ENABLED === 'true';
 const DEFAULT_AUTOFILL_UPDATE_ENABLED = process.env.NEXT_PUBLIC_AUTOFILL_UPDATE_ENABLED === 'true';
+const SUBMISSION_TIMEOUT_MS = 90000;
 
 function parseFeaturesText(featuresText) {
   if (typeof featuresText !== 'string') {
@@ -89,6 +90,7 @@ const WIZARD_FIELD_METADATA = {
   clientId: { label: 'App client ID', targetId: 'client-id' },
   appCapabilities: { label: 'App capabilities', targetId: 'App-Capabilities' },
   appInstallUrl: { label: 'App install URL', targetId: 'App-Install-URL' },
+  appScopes: { label: 'Scopes', targetId: 'scope-selector' },
   appAvatarImage: { label: 'App icon image', targetId: 'App-Avatar-Image-2' },
   appAvatarAltText: { label: 'App icon image alt text', targetId: 'App-Avatar-Alt-Text' },
   paymentType: { label: 'Payment type', targetId: 'Checkbox-Free' },
@@ -258,6 +260,7 @@ export default function CompleteMarketplaceForm() {
   }, []);
 
   const [submissionSuccess, setSubmissionSuccess] = useState(false);
+  const [submissionReceipt, setSubmissionReceipt] = useState(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [formStatus, setFormStatus] = useState({ type: '', message: '' });
   const [draftBanner, setDraftBanner] = useState(null);
@@ -318,6 +321,20 @@ export default function CompleteMarketplaceForm() {
       }
     }
   };
+
+  useEffect(() => {
+    if (!submissionSuccess || typeof window === 'undefined') {
+      return undefined;
+    }
+
+    scrollToFormTop();
+
+    const focusTimer = window.setTimeout(() => {
+      successRef.current?.focus({ preventScroll: true });
+    }, 100);
+
+    return () => window.clearTimeout(focusTimer);
+  }, [submissionSuccess]);
 
   const ensureWizardMode = () => {
     if (viewMode === 'wizard') {
@@ -383,9 +400,15 @@ export default function CompleteMarketplaceForm() {
   // Jump to the step containing a given element, then scroll it into view
   // once React has flipped the step's display state.
   const navigateToErrorElement = (element) => {
-    if (!element || typeof window === 'undefined') {
+    if (typeof window === 'undefined') {
       return;
     }
+
+    if (!element) {
+      scrollToFormTop();
+      return;
+    }
+
     const stepContainer = element.closest('[data-wizard-step]');
     if (stepContainer) {
       const step = Number(stepContainer.dataset.wizardStep);
@@ -502,6 +525,7 @@ export default function CompleteMarketplaceForm() {
   const quillDetailRef = useRef();
   const avatarFileRef = useRef();
   const screenshotFileRefs = useRef([]);
+  const successRef = useRef(null);
   const hasMountedRef = useRef(false);
 
   // Initialize screenshot refs
@@ -1307,6 +1331,7 @@ export default function CompleteMarketplaceForm() {
     }
 
     setIsSubmitting(true);
+    setSubmissionReceipt(null);
     setFormStatus({ type: '', message: '' });
 
     // Clear all previous inline errors
@@ -1321,20 +1346,23 @@ export default function CompleteMarketplaceForm() {
       submissionError: ''
     }));
 
-    if (viewMode === 'wizard') {
-      const missingStep = findFirstMissingWizardStep();
-      if (missingStep) {
-        const fieldErrors = checkRequiredFields();
-        setValidationState((prev) => ({
-          ...prev,
-          errors: fieldErrors,
-        }));
-        setStepGateMissing(missingStep);
-        const firstMissingTarget = getWizardFieldTarget(missingStep.fields[0]);
-        navigateToErrorElement(firstMissingTarget);
-        setIsSubmitting(false);
-        return;
-      }
+    const missingStep = findFirstMissingWizardStep();
+    if (missingStep) {
+      const fieldErrors = checkRequiredFields();
+      setValidationState((prev) => ({
+        ...prev,
+        errors: fieldErrors,
+      }));
+      setStepGateMissing(missingStep);
+      setFormStatus({
+        type: 'error',
+        message: formatStepGateMessage(missingStep.fields || []),
+      });
+      setCurrentStep(missingStep.stepIndex);
+      const firstMissingTarget = getWizardFieldTarget(missingStep.fields[0]);
+      navigateToErrorElement(firstMissingTarget);
+      setIsSubmitting(false);
+      return;
     }
 
     // Validate checkbox groups like original form (only for non-Update submissions)
@@ -1483,12 +1511,23 @@ export default function CompleteMarketplaceForm() {
     const screenshotCount = screenshotFiles.length;
     if (formData.submissionType !== 'Update' && screenshotCount < 4) {
       const screenshotLabel = screenshotCount === 1 ? 'screenshot' : 'screenshots';
+      const missingScreenshotCount = 4 - screenshotCount;
+      const missingScreenshotLabel = missingScreenshotCount === 1 ? 'screenshot' : 'screenshots';
+      const screenshotCountMessage = `4 screenshots are required to show key workflows. Upload ${missingScreenshotCount} more ${missingScreenshotLabel}. You currently have ${screenshotCount} ${screenshotLabel}.`;
       setValidationState(prev => ({
         ...prev,
-        screenshotsCountError: `At least 4 screenshots are required to show key workflows. You currently have ${screenshotCount} ${screenshotLabel}.`
+        screenshotsCountError: screenshotCountMessage
       }));
+      setFormStatus({
+        type: 'error',
+        message: screenshotCountMessage,
+      });
+      const appDetailsStepIndex = FORM_SECTIONS.findIndex((section) => section.id === 'app-details');
+      if (appDetailsStepIndex !== -1) {
+        setCurrentStep(appDetailsStepIndex);
+      }
 
-      navigateToErrorElement(document.querySelector('[id*="Screenshot"]'));
+      navigateToErrorElement(document.getElementById('app-screenshots') || document.getElementById('screenshots-add-input'));
       setIsSubmitting(false);
       return;
     }
@@ -1569,12 +1608,35 @@ export default function CompleteMarketplaceForm() {
       formDataToSubmit.append('Scope-Justification', scopeJustification);
     }
 
+    let didSubmitSuccessfully = false;
+
     try {
-      const response = await fetch(withBasePath('/api/submit-form'), {
-        method: 'POST',
-        // Don't set Content-Type header - browser will set it with boundary for multipart/form-data
-        body: formDataToSubmit
+      setFormStatus({
+        type: 'info',
+        message: 'Submitting your app. Keep this tab open while uploads finish.',
       });
+
+      const submitController = new AbortController();
+      const submitTimeout = window.setTimeout(() => {
+        submitController.abort();
+      }, SUBMISSION_TIMEOUT_MS);
+      let response;
+
+      try {
+        response = await fetch(withBasePath('/api/submit-form'), {
+          method: 'POST',
+          // Don't set Content-Type header - browser will set it with boundary for multipart/form-data
+          body: formDataToSubmit,
+          signal: submitController.signal,
+        });
+      } catch (fetchError) {
+        if (fetchError?.name === 'AbortError') {
+          throw new Error('Submission timed out before the server responded. Please try again, and contact marketplace support if it happens twice.');
+        }
+        throw fetchError;
+      } finally {
+        window.clearTimeout(submitTimeout);
+      }
 
       // Handle 413 Payload Too Large error
       if (response.status === 413) {
@@ -1582,6 +1644,7 @@ export default function CompleteMarketplaceForm() {
           ...prev,
           submissionError: 'File size too large. Please compress your images and try again. Total upload size must be under 4MB.'
         }));
+        setFormStatus({ type: '', message: '' });
         window.scrollTo({ top: 0, behavior: 'smooth' });
         return;
       }
@@ -1606,6 +1669,13 @@ export default function CompleteMarketplaceForm() {
         });
 
         // Show success state
+        didSubmitSuccessfully = true;
+        setSubmissionReceipt({
+          submissionId: result.submissionId || '',
+          airtableSubmissionId: result.airtableSubmissionId || '',
+          duplicate: Boolean(result.duplicate),
+          originalSubmittedAt: result.originalSubmittedAt || '',
+        });
         setSubmissionSuccess(true);
         if (typeof window !== 'undefined') {
           try {
@@ -1655,10 +1725,11 @@ export default function CompleteMarketplaceForm() {
         ...prev,
         submissionError: `Error: ${error.message}`
       }));
+      setFormStatus({ type: '', message: '' });
       window.scrollTo({ top: 0, behavior: 'smooth' });
     } finally {
       // Re-enable submit button (unless submission was successful)
-      if (!submissionSuccess) {
+      if (!didSubmitSuccessfully) {
         setIsSubmitting(false);
       }
     }
@@ -1988,7 +2059,7 @@ export default function CompleteMarketplaceForm() {
           name="wf-form-Marketplace-App-Submission"
           className="form-wrapper"
           onSubmit={handleSubmit}
-          noValidate={viewMode === 'wizard'}
+          noValidate
           style={{display: submissionSuccess ? 'none' : 'block'}}
         >
 
@@ -2528,6 +2599,11 @@ export default function CompleteMarketplaceForm() {
             ) : (
               <div className="scope-empty-state">
                 No scopes added yet.
+              </div>
+            )}
+            {validationState.errors.appScopes && (
+              <div className="validation-error-message" style={{display: 'block'}}>
+                {validationState.errors.appScopes}
               </div>
             )}
           </div>
@@ -3095,7 +3171,7 @@ export default function CompleteMarketplaceForm() {
           />
 
           {shouldShowSection('screenshots') && (
-          <div className="input-group">
+          <div id="app-screenshots" className="input-group">
             <label htmlFor="Email" className="input-label">
               App screenshots <span className="dyn-asterisk" style={{display: 'none'}}>*</span><br />
             </label>
@@ -3683,6 +3759,7 @@ N/A`}
 
         {/* Success State */}
         <div
+          ref={successRef}
           className="form-success w-form-done"
           tabIndex="-1"
           role="region"
@@ -3691,18 +3768,56 @@ N/A`}
           aria-atomic="true"
           style={{display: submissionSuccess ? 'block' : 'none'}}
         >
-          <div className="form-success_flex cc-relative">
-            <h3>
-              Thank you! Your submission has been received.
-            </h3>
+          <div
+            className="form-success_flex cc-relative"
+            style={{
+              display: 'flex',
+              flexDirection: 'column',
+              alignItems: 'flex-start',
+              gap: '0.75rem',
+              textAlign: 'left',
+              border: '1px solid color-mix(in srgb, var(--_color---secondary--green, #00d722) 35%, transparent)',
+              borderRadius: '8px',
+              background: 'color-mix(in srgb, var(--_color---secondary--green, #00d722) 10%, transparent)',
+              padding: '1.25rem',
+            }}
+          >
+            <div style={{ display: 'flex', alignItems: 'center', gap: '0.625rem' }}>
+              <CheckCircle
+                size={24}
+                aria-hidden="true"
+                style={{
+                  color: 'var(--colors--success, var(--_color---secondary--green, #15803d))',
+                  flexShrink: 0,
+                }}
+              />
+              <h3 style={{ margin: 0 }}>
+                {submissionReceipt?.duplicate
+                  ? 'We already received this submission.'
+                  : 'Thank you! Your submission has been received.'}
+              </h3>
+            </div>
             <div
               data-wf--rich-text--alignment="left-align"
               className="rich-text-component u-mb-0"
             >
               <div className="rich-text w-richtext">
-                <p>
+                <p style={{ marginBottom: submissionReceipt?.submissionId ? '0.75rem' : 0 }}>
                   Our team will get back to you after reviewing your application.
                 </p>
+                {submissionReceipt?.submissionId && (
+                  <p style={{ marginBottom: 0 }}>
+                    Reference ID: <strong>{submissionReceipt.submissionId}</strong>
+                    {submissionReceipt.airtableSubmissionId ? (
+                      <> / Airtable ID: <strong>{submissionReceipt.airtableSubmissionId}</strong></>
+                    ) : null}
+                  </p>
+                )}
+                {submissionReceipt?.originalSubmittedAt && (
+                  <p style={{ marginBottom: 0 }}>
+                    Original submission time: <strong>{new Date(submissionReceipt.originalSubmittedAt).toLocaleString()}</strong>
+                  </p>
+                )}
               </div>
             </div>
           </div>

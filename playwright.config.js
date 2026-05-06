@@ -1,5 +1,10 @@
 import { defineConfig, devices } from '@playwright/test';
 
+function normalizeBaseURL(value) {
+  const baseURL = value || 'http://localhost:3000';
+  return baseURL.endsWith('/') ? baseURL : `${baseURL}/`;
+}
+
 /**
  * Playwright config for the marketplace submission form.
  *
@@ -22,7 +27,7 @@ export default defineConfig({
   workers: process.env.CI ? 2 : undefined,
   reporter: process.env.CI ? [['github'], ['list']] : 'list',
   use: {
-    baseURL: process.env.BASE_URL || 'http://localhost:3000',
+    baseURL: normalizeBaseURL(process.env.BASE_URL),
     trace: 'on-first-retry',
     video: 'retain-on-failure',
   },

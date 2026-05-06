@@ -2,7 +2,7 @@ import { expect, test } from '@playwright/test';
 
 test.describe('marketplace form smoke', () => {
   test('health endpoint reports D1 + R2 ok', async ({ request }) => {
-    const response = await request.get('/api/health');
+    const response = await request.get('api/health');
     expect(response.status(), 'health endpoint status').toBe(200);
     const body = await response.json();
     expect(body.d1).toBe('ok');
@@ -10,7 +10,7 @@ test.describe('marketplace form smoke', () => {
   });
 
   test('form page renders progress rail', async ({ page }) => {
-    await page.goto('/complete-form');
+    await page.goto('complete-form');
     // The progress rail shows a percent-complete label and pills per section.
     // If any of these are missing something is very broken.
     await expect(page.getByText(/complete/i).first()).toBeVisible();
@@ -19,7 +19,7 @@ test.describe('marketplace form smoke', () => {
   });
 
   test('submit type selector is present and selectable', async ({ page }) => {
-    await page.goto('/complete-form');
+    await page.goto('complete-form');
     const select = page.locator('#Submission-Type');
     await expect(select).toBeVisible();
     await select.selectOption('New');
@@ -35,8 +35,8 @@ test.describe('full submission (staging only)', () => {
   );
 
   test('New submission flows through to success state', async ({ page }) => {
-    await page.goto('/complete-form');
-    await page.locator('#submission-type').selectOption('New');
+    await page.goto('complete-form');
+    await page.locator('#Submission-Type').selectOption('New');
 
     await page.fill('#app-name', `E2E Test ${Date.now()}`);
     // Remaining required fields would be filled here in a real staging run.
