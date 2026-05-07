@@ -102,6 +102,7 @@ const WIZARD_FIELD_METADATA = {
   creatorContactEmail: { label: 'Contact email', targetId: 'Creator-Contact-Email' },
   appPreviewDescription: { label: 'App preview description', targetId: 'Short-Description' },
   appDetailDescription: { label: 'App detail description', targetId: 'Long-Description' },
+  appScreenshots: { label: 'App screenshots', targetId: 'app-screenshots' },
   appFeaturesOverview: { label: 'Features overview', targetId: 'Feature-1' },
   appWebsiteUrl: { label: 'App website URL', targetId: 'Website-URL-2' },
   appAccessCredentials: { label: 'App access credentials', targetId: 'app-access-credentials' },
@@ -368,14 +369,56 @@ export default function CompleteMarketplaceForm() {
     scrollToFormTop();
   };
 
+  const getScreenshotCountValidation = () => {
+    if (formData.submissionType === 'Update') {
+      return null;
+    }
+
+    const screenshotCount = (formData.appScreenshots || []).filter(Boolean).length;
+    if (screenshotCount >= 4) {
+      return null;
+    }
+
+    const screenshotLabel = screenshotCount === 1 ? 'screenshot' : 'screenshots';
+    const missingScreenshotCount = 4 - screenshotCount;
+    const missingScreenshotLabel = missingScreenshotCount === 1 ? 'screenshot' : 'screenshots';
+
+    return {
+      screenshotCount,
+      message: `4 screenshots are required to show key workflows. Upload ${missingScreenshotCount} more ${missingScreenshotLabel}. You currently have ${screenshotCount} ${screenshotLabel}.`,
+    };
+  };
+
+  const getStepGateMessage = (missingFields) => {
+    const normalizedMissingFields = missingFields || [];
+    const standardMissingFields = normalizedMissingFields.filter((field) => field !== 'appScreenshots');
+    const messages = [formatStepGateMessage(standardMissingFields)];
+
+    if (normalizedMissingFields.includes('appScreenshots')) {
+      const screenshotValidation = getScreenshotCountValidation();
+      if (screenshotValidation?.message) {
+        messages.push(screenshotValidation.message);
+      }
+    }
+
+    return messages.filter(Boolean).join(' ');
+  };
+
   const getMissingRequiredFieldsForStep = (stepIndex) => {
     const section = FORM_SECTIONS[stepIndex];
     if (!section) {
       return [];
     }
-    return section.fields.filter(
+
+    const missing = section.fields.filter(
       (field) => isFieldRequired(field) && !hasMeaningfulFormValue(formData[field])
     );
+
+    if (section.id === 'app-details' && getScreenshotCountValidation()) {
+      missing.push('appScreenshots');
+    }
+
+    return missing;
   };
 
   const goToNextStep = () => {
@@ -383,6 +426,17 @@ export default function CompleteMarketplaceForm() {
       const missing = getMissingRequiredFieldsForStep(currentStep);
       if (missing.length > 0) {
         setStepGateMissing({ stepIndex: currentStep, fields: missing });
+        setFormStatus({
+          type: 'error',
+          message: getStepGateMessage(missing),
+        });
+        if (missing.includes('appScreenshots')) {
+          const screenshotValidation = getScreenshotCountValidation();
+          setValidationState((prev) => ({
+            ...prev,
+            screenshotsCountError: screenshotValidation?.message || prev.screenshotsCountError,
+          }));
+        }
         const firstMissingTarget = getWizardFieldTarget(missing[0]);
         navigateToErrorElement(firstMissingTarget);
         return;
@@ -1352,11 +1406,14 @@ export default function CompleteMarketplaceForm() {
       setValidationState((prev) => ({
         ...prev,
         errors: fieldErrors,
+        screenshotsCountError: missingStep.fields.includes('appScreenshots')
+          ? getScreenshotCountValidation()?.message || prev.screenshotsCountError
+          : prev.screenshotsCountError,
       }));
       setStepGateMissing(missingStep);
       setFormStatus({
         type: 'error',
-        message: formatStepGateMessage(missingStep.fields || []),
+        message: getStepGateMessage(missingStep.fields || []),
       });
       setCurrentStep(missingStep.stepIndex);
       const firstMissingTarget = getWizardFieldTarget(missingStep.fields[0]);
@@ -1509,18 +1566,15 @@ export default function CompleteMarketplaceForm() {
     // Validate minimum screenshots (4 required, only for New submissions)
     const screenshotFiles = (formData.appScreenshots || []).filter(Boolean);
     const screenshotCount = screenshotFiles.length;
-    if (formData.submissionType !== 'Update' && screenshotCount < 4) {
-      const screenshotLabel = screenshotCount === 1 ? 'screenshot' : 'screenshots';
-      const missingScreenshotCount = 4 - screenshotCount;
-      const missingScreenshotLabel = missingScreenshotCount === 1 ? 'screenshot' : 'screenshots';
-      const screenshotCountMessage = `4 screenshots are required to show key workflows. Upload ${missingScreenshotCount} more ${missingScreenshotLabel}. You currently have ${screenshotCount} ${screenshotLabel}.`;
+    const screenshotCountValidation = getScreenshotCountValidation();
+    if (screenshotCountValidation) {
       setValidationState(prev => ({
         ...prev,
-        screenshotsCountError: screenshotCountMessage
+        screenshotsCountError: screenshotCountValidation.message
       }));
       setFormStatus({
         type: 'error',
-        message: screenshotCountMessage,
+        message: screenshotCountValidation.message,
       });
       const appDetailsStepIndex = FORM_SECTIONS.findIndex((section) => section.id === 'app-details');
       if (appDetailsStepIndex !== -1) {
@@ -3244,7 +3298,12 @@ export default function CompleteMarketplaceForm() {
             <ScreenshotsList
               screenshots={formData.appScreenshots}
               altTexts={formData.appScreenshotAltTexts}
-              onScreenshotsChange={(next) => setFormData((prev) => ({ ...prev, appScreenshots: next }))}
+              onScreenshotsChange={(next) => {
+                setFormData((prev) => ({ ...prev, appScreenshots: next }));
+                if ((next || []).filter(Boolean).length >= 4) {
+                  setValidationState((prev) => ({ ...prev, screenshotsCountError: '' }));
+                }
+              }}
               onAltTextsChange={(next) => setFormData((prev) => ({ ...prev, appScreenshotAltTexts: next }))}
               onFileValidate={validateScreenshotUpload}
               errors={validationState.screenshotFileErrors}
@@ -3703,7 +3762,7 @@ N/A`}
           >
             <TriangleAlert size={16} style={{ flexShrink: 0, marginTop: '2px' }} aria-hidden="true" />
             <span>
-              {formatStepGateMessage(stepGateMissing.fields || [])}
+              {getStepGateMessage(stepGateMissing.fields || [])}
             </span>
           </div>
         )}
