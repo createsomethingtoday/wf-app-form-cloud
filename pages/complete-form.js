@@ -139,6 +139,69 @@ function formatStepGateMessage(missingFields) {
     : `Complete the remaining required fields before continuing: ${summary}.`;
 }
 
+function appendSubmissionPayloadValue(target, key, value) {
+  const existingValue = target[key];
+
+  if (existingValue === undefined) {
+    target[key] = value;
+    return;
+  }
+
+  if (Array.isArray(existingValue)) {
+    existingValue.push(value);
+    return;
+  }
+
+  target[key] = [existingValue, value];
+}
+
+function submissionFieldsFromFormData(formData) {
+  const fields = {};
+
+  for (const [key, value] of formData.entries()) {
+    if (typeof File !== 'undefined' && value instanceof File) {
+      continue;
+    }
+
+    appendSubmissionPayloadValue(fields, key, value);
+  }
+
+  return fields;
+}
+
+async function saveSubmissionIntent(fields) {
+  const response = await fetch(withBasePath('/api/submission-intent'), {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify({ fields }),
+  });
+
+  const responseText = await response.text();
+  let result = {};
+
+  try {
+    result = responseText ? JSON.parse(responseText) : {};
+  } catch {
+    result = { error: responseText || response.statusText };
+  }
+
+  if (!response.ok) {
+    throw new Error(result.error || result.message || 'Unable to save submission details before upload.');
+  }
+
+  return result;
+}
+
+function formatSubmissionErrorMessage(error, preservedSubmissionId) {
+  if (preservedSubmissionId && /timed out/i.test(error.message || '')) {
+    return `${error.message} Submission details were saved with reference ID ${preservedSubmissionId}; marketplace support can look it up even if the file upload did not finish.`;
+  }
+
+  return error.message;
+}
+
 export default function CompleteMarketplaceForm() {
   // Feature flag: Update flow toggles
   const [updateTogglesEnabled, setUpdateTogglesEnabled] = useState(DEFAULT_UPDATE_TOGGLES_ENABLED);
@@ -1589,7 +1652,7 @@ export default function CompleteMarketplaceForm() {
     const screenshotAltErrors = ['', '', '', '', ''];
     let firstMissingScreenshotAltIndex = -1;
 
-    screenshotFiles.forEach((file, index) => {
+    screenshotFiles.forEach((_, index) => {
       const altText = finalFormData.appScreenshotAltTexts[index] || '';
       if (!String(altText).trim()) {
         screenshotAltErrors[index] = `Add alt text for screenshot ${index + 1}.`;
@@ -1636,15 +1699,10 @@ export default function CompleteMarketplaceForm() {
       return;
     }
 
-    // Add uploaded files
-    if (avatarFileRef.current?.files?.[0]) {
-      formDataToSubmit.append('avatar', avatarFileRef.current.files[0]);
-    }
-
-    // Add screenshot files and their alt texts
+    // Add screenshot alt texts before uploading files so the pre-upload
+    // submission intent has enough detail for support to recover the row.
     const consolidatedAltTexts = [];
     screenshotFiles.forEach((file, index) => {
-      formDataToSubmit.append('screenshots', file);
       const altText = finalFormData.appScreenshotAltTexts[index] || '';
       formDataToSubmit.append(`screenshotAltText${index}`, altText);
       if (altText) {
@@ -1663,11 +1721,34 @@ export default function CompleteMarketplaceForm() {
     }
 
     let didSubmitSuccessfully = false;
+    let preservedSubmissionId = '';
 
     try {
       setFormStatus({
         type: 'info',
-        message: 'Submitting your app. Keep this tab open while uploads finish.',
+        message: 'Saving submission details before upload.',
+      });
+
+      const submissionIntent = await saveSubmissionIntent(submissionFieldsFromFormData(formDataToSubmit));
+      preservedSubmissionId = submissionIntent.submissionId || '';
+
+      if (preservedSubmissionId) {
+        formDataToSubmit.append('submissionIntentId', preservedSubmissionId);
+      }
+
+      // Add uploaded files after the intent is stored. If the larger multipart
+      // request times out, support can still recover the saved D1 record.
+      if (avatarFileRef.current?.files?.[0]) {
+        formDataToSubmit.append('avatar', avatarFileRef.current.files[0]);
+      }
+
+      screenshotFiles.forEach((file) => {
+        formDataToSubmit.append('screenshots', file);
+      });
+
+      setFormStatus({
+        type: 'info',
+        message: 'Uploading files and sending your app to the review team. Keep this tab open while uploads finish.',
       });
 
       const submitController = new AbortController();
@@ -1777,7 +1858,7 @@ export default function CompleteMarketplaceForm() {
       console.error('Form submission error:', error);
       setValidationState(prev => ({
         ...prev,
-        submissionError: `Error: ${error.message}`
+        submissionError: `Error: ${formatSubmissionErrorMessage(error, preservedSubmissionId)}`
       }));
       setFormStatus({ type: '', message: '' });
       window.scrollTo({ top: 0, behavior: 'smooth' });
