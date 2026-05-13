@@ -3912,49 +3912,89 @@ N/A`}
             className="form-success_flex cc-relative"
             style={{
               display: 'flex',
-              flexDirection: 'column',
               alignItems: 'flex-start',
-              gap: '0.75rem',
+              gap: '1rem',
               textAlign: 'left',
               border: '1px solid color-mix(in srgb, var(--_color---secondary--green, #00d722) 35%, transparent)',
               borderRadius: '8px',
               background: 'color-mix(in srgb, var(--_color---secondary--green, #00d722) 10%, transparent)',
-              padding: '1.25rem',
+              padding: '1.5rem',
+              width: '100%',
             }}
           >
-            <div style={{ display: 'flex', alignItems: 'center', gap: '0.625rem' }}>
+            <div
+              aria-hidden="true"
+              style={{
+                display: 'inline-flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                width: '2.5rem',
+                height: '2.5rem',
+                flex: '0 0 2.5rem',
+                borderRadius: '999px',
+                background: 'color-mix(in srgb, var(--_color---secondary--green, #00d722) 18%, transparent)',
+                border: '1px solid color-mix(in srgb, var(--_color---secondary--green, #00d722) 42%, transparent)',
+              }}
+            >
               <CheckCircle
-                size={24}
-                aria-hidden="true"
+                size={22}
                 style={{
                   color: 'var(--colors--success, var(--_color---secondary--green, #15803d))',
                   flexShrink: 0,
                 }}
               />
-              <h3 style={{ margin: 0 }}>
+            </div>
+            <div style={{ flex: '1 1 16rem', minWidth: 0 }}>
+              <h3 style={{ margin: '0 0 0.5rem', fontSize: '1.5rem', lineHeight: 1.15 }}>
                 {submissionReceipt?.duplicate
                   ? 'We already received this submission.'
                   : 'Thank you! Your submission has been received.'}
               </h3>
-            </div>
-            <div
-              data-wf--rich-text--alignment="left-align"
-              className="rich-text-component u-mb-0"
-            >
-              <div className="rich-text w-richtext">
-                <p style={{ marginBottom: submissionReceipt?.submissionId ? '0.75rem' : 0 }}>
-                  Our team will get back to you after reviewing your application.
-                </p>
-                {submissionReceipt?.submissionId && (
-                  <p style={{ marginBottom: 0 }}>
-                    Reference ID: <strong>{submissionReceipt.submissionId}</strong>
+              <div
+                data-wf--rich-text--alignment="left-align"
+                className="rich-text-component u-mb-0"
+              >
+                <div className="rich-text w-richtext">
+                  <p style={{ margin: 0, lineHeight: 1.45 }}>
+                    Our team will get back to you after reviewing your application.
                   </p>
-                )}
-                {submissionReceipt?.originalSubmittedAt && (
-                  <p style={{ marginBottom: 0 }}>
-                    Original submission time: <strong>{new Date(submissionReceipt.originalSubmittedAt).toLocaleString()}</strong>
-                  </p>
-                )}
+                  {submissionReceipt?.submissionId && (
+                    <div
+                      style={{
+                        display: 'flex',
+                        alignItems: 'center',
+                        flexWrap: 'wrap',
+                        gap: '0.375rem 0.625rem',
+                        marginTop: '0.875rem',
+                        fontSize: '0.875rem',
+                      }}
+                    >
+                      <span style={{ fontWeight: 600 }}>Reference ID</span>
+                      <code
+                        style={{
+                          display: 'inline-block',
+                          maxWidth: '100%',
+                          padding: '0.25rem 0.5rem',
+                          borderRadius: '4px',
+                          background: 'color-mix(in srgb, var(--_color---secondary--green, #00d722) 12%, transparent)',
+                          border: '1px solid color-mix(in srgb, var(--_color---secondary--green, #00d722) 32%, transparent)',
+                          fontFamily: 'ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", monospace',
+                          fontSize: '0.8125rem',
+                          lineHeight: 1.4,
+                          whiteSpace: 'normal',
+                          overflowWrap: 'anywhere',
+                        }}
+                      >
+                        {submissionReceipt.submissionId}
+                      </code>
+                    </div>
+                  )}
+                  {submissionReceipt?.originalSubmittedAt && (
+                    <p style={{ margin: '0.75rem 0 0', fontSize: '0.875rem', lineHeight: 1.45 }}>
+                      Original submission time: <strong>{new Date(submissionReceipt.originalSubmittedAt).toLocaleString()}</strong>
+                    </p>
+                  )}
+                </div>
               </div>
             </div>
           </div>
