@@ -114,7 +114,7 @@ export default async function handler(req, res) {
     if (!AIRTABLE_API_KEY) {
       return res.status(500).json({
         success: false,
-        message: 'Airtable API key not configured'
+        message: 'App lookup is not configured'
       });
     }
 
@@ -162,8 +162,8 @@ export default async function handler(req, res) {
     console.error('Airtable query error:', error);
     return res.status(500).json({
       success: false,
-      message: 'Failed to query Airtable',
-      error: error.message
+      message: 'Failed to load app data',
+      error: 'App lookup failed'
     });
   }
 }

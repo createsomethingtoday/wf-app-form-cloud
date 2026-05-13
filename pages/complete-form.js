@@ -2690,7 +2690,7 @@ export default function CompleteMarketplaceForm() {
                           <h3 className="scope-card-title">{scope.name}</h3>
                         </div>
                         <p className="scope-card-description">
-                          {definition?.description || 'Imported from Airtable. Verify the access level before submitting.'}
+                          {definition?.description || 'Imported from the existing app record. Verify the access level before submitting.'}
                         </p>
                         <button
                           type="button"
@@ -3948,9 +3948,6 @@ N/A`}
                 {submissionReceipt?.submissionId && (
                   <p style={{ marginBottom: 0 }}>
                     Reference ID: <strong>{submissionReceipt.submissionId}</strong>
-                    {submissionReceipt.airtableSubmissionId ? (
-                      <> / Airtable ID: <strong>{submissionReceipt.airtableSubmissionId}</strong></>
-                    ) : null}
                   </p>
                 )}
                 {submissionReceipt?.originalSubmittedAt && (
